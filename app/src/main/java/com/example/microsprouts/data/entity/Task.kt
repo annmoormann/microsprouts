@@ -12,10 +12,19 @@ import androidx.room.PrimaryKey
             entity = Task::class,
             parentColumns = ["id"],
             childColumns = ["parentId"],
-            onDelete = ForeignKey.CASCADE,
+            onDelete = ForeignKey.CASCADE
         ),
+        ForeignKey(
+            entity = Category::class,
+            parentColumns = ["id"],
+            childColumns = ["primaryCategoryId"],
+            onDelete = ForeignKey.SET_NULL
+        )
     ],
-    indices = [Index(value = ["parentId"])],
+    indices = [
+        Index(value = ["parentId"]),
+        Index(value = ["primaryCategoryId"])
+    ]
 )
 data class Task(
     @PrimaryKey(autoGenerate = true)
@@ -27,4 +36,5 @@ data class Task(
     val recurrence: String? = null,
     val missedBehavior: MissedBehavior = MissedBehavior.ADD_NEW,
     val parentId: Long? = null,
+    val primaryCategoryId: Long? = null
 )

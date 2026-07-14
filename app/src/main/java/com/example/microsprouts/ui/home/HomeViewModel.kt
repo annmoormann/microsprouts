@@ -2,11 +2,15 @@ package com.example.microsprouts.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.microsprouts.data.entity.Category
 import com.example.microsprouts.data.entity.Task
+import com.example.microsprouts.data.entity.TaskCategoryCrossRef
 import com.example.microsprouts.data.repository.TaskRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -55,9 +59,55 @@ class HomeViewModel(
             initialValue = emptyMap(),
         )
 
+    val allCategories: StateFlow<List<Category>> = flow {
+        while (true) {
+            emit(repository.getAllCategories())
+            delay(3000)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList(),
+    )
+
+    val taskSecondaryCategories: StateFlow<Map<Long, List<Category>>> = repository.allTasks
+        .map { tasks ->
+            val map = mutableMapOf<Long, List<Category>>()
+            tasks.forEach { task ->
+                map[task.id] = repository.getSecondaryCategoriesForTask(task.id)
+            }
+            map
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap(),
+        )
+
     fun insertTask(task: Task) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.insertTask(task)
+        }
+    }
+
+    fun insertTask(
+        title: String,
+        primaryCategoryId: Long?,
+        secondaryCategoryIds: List<Long>,
+        parentId: Long?
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val task = Task(
+                title = title,
+                primaryCategoryId = primaryCategoryId,
+                parentId = parentId
+            )
+            val newTaskId = repository.insertTask(task)
+            secondaryCategoryIds.forEach { catId ->
+                repository.insertSecondaryCategory(
+                    TaskCategoryCrossRef(taskId = newTaskId, categoryId = catId)
+                )
+            }
         }
     }
 

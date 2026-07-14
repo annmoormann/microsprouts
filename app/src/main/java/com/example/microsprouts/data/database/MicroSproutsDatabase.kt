@@ -5,9 +5,19 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.microsprouts.data.dao.TaskDao
+import com.example.microsprouts.data.entity.Category
 import com.example.microsprouts.data.entity.Task
+import com.example.microsprouts.data.entity.TaskCategoryCrossRef
 
-@Database(entities = [Task::class], version = 1, exportSchema = false)
+@Database(
+    entities = [
+        Task::class,
+        Category::class,
+        TaskCategoryCrossRef::class
+    ],
+    version = 2,
+    exportSchema = false
+)
 abstract class MicroSproutsDatabase : RoomDatabase() {
 
     abstract fun taskDao(): TaskDao
@@ -24,7 +34,9 @@ abstract class MicroSproutsDatabase : RoomDatabase() {
                     context.applicationContext,
                     MicroSproutsDatabase::class.java,
                     "microsprouts_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .build()
                 INSTANCE = instance
                 // return instance
                 instance
