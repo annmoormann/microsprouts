@@ -1,6 +1,7 @@
 package com.example.microsprouts.ui.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +73,7 @@ fun HomeScreen(
     val taskSecondaryCategories by viewModel.taskSecondaryCategories.collectAsStateWithLifecycle()
 
     var showAddTaskSheet by remember { mutableStateOf(false) }
+    var editingTask by remember { mutableStateOf<Task?>(null) }
 
     val activeTasks = if (selectedTab == 0) todayTasks else laterTasks
 
@@ -195,6 +197,8 @@ fun HomeScreen(
                             task = parentTask,
                             subtasks = taskSubtasks,
                             onToggle = { viewModel.toggleTaskCompletion(it) },
+                            onCardClick = { editingTask = parentTask },
+                            onSubtaskClick = { editingTask = it }
                         )
                     }
                 }
@@ -218,6 +222,41 @@ fun HomeScreen(
             allCategories = allCategories,
             parentSecondaryCategoriesLookup = { parentId ->
                 taskSecondaryCategories[parentId] ?: emptyList()
+            },
+            onCreateCategory = { name, colorHex ->
+                viewModel.insertCategory(name, colorHex)
+            }
+        )
+    }
+
+    if (editingTask != null) {
+        val currentTask = editingTask!!
+        EditTaskSheet(
+            task = currentTask,
+            onDismiss = { editingTask = null },
+            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId ->
+                viewModel.updateTask(
+                    currentTask.copy(
+                        title = title,
+                        primaryCategoryId = primaryCategoryId,
+                        parentId = parentId
+                    ),
+                    secondaryCategoryIds
+                )
+                editingTask = null
+            },
+            onDelete = {
+                viewModel.deleteTask(currentTask.id)
+                editingTask = null
+            },
+            availableParentTasks = todayTasks + laterTasks,
+            allCategories = allCategories,
+            currentSecondaryCategoryIds = taskSecondaryCategories[currentTask.id]?.map { it.id } ?: emptyList(),
+            parentSecondaryCategoriesLookup = { parentId ->
+                taskSecondaryCategories[parentId] ?: emptyList()
+            },
+            onCreateCategory = { name, colorHex ->
+                viewModel.insertCategory(name, colorHex)
             }
         )
     }
@@ -228,10 +267,14 @@ fun ParentTaskCard(
     task: Task,
     subtasks: List<Task>,
     onToggle: (Task) -> Unit,
+    onCardClick: () -> Unit,
+    onSubtaskClick: (Task) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -310,7 +353,10 @@ fun ParentTaskCard(
                         val subTextDecoration = if (subCompleted) TextDecoration.LineThrough else TextDecoration.None
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSubtaskClick(subtask) }
+                                .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Checkbox(

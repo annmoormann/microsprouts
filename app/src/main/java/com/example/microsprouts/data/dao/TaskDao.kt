@@ -24,6 +24,9 @@ interface TaskDao {
     @Query("DELETE FROM tasks")
     suspend fun clearAllTasks()
 
+    @Query("DELETE FROM tasks WHERE id = :id")
+    suspend fun deleteTaskById(id: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: Category)
 
@@ -32,6 +35,9 @@ interface TaskDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSecondaryCategory(crossRef: TaskCategoryCrossRef)
+
+    @Query("DELETE FROM task_category_cross_ref WHERE taskId = :taskId")
+    suspend fun deleteSecondaryCategoriesForTask(taskId: Long)
 
     @Query("SELECT * FROM categories WHERE id IN (SELECT categoryId FROM task_category_cross_ref WHERE taskId = :taskId)")
     suspend fun getSecondaryCategoriesForTask(taskId: Long): List<Category>

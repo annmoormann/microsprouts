@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -49,7 +50,8 @@ import com.example.microsprouts.data.entity.Task
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTaskSheet(
+fun EditTaskSheet(
+    task: Task,
     onDismiss: () -> Unit,
     onConfirm: (
         title: String,
@@ -57,20 +59,27 @@ fun AddTaskSheet(
         secondaryCategoryIds: List<Long>,
         parentId: Long?
     ) -> Unit,
+    onDelete: () -> Unit,
     availableParentTasks: List<Task>,
     allCategories: List<Category>,
+    currentSecondaryCategoryIds: List<Long>,
     parentSecondaryCategoriesLookup: (Long) -> List<Category>,
     onCreateCategory: (name: String, colorHex: String) -> Unit = { _, _ -> }
 ) {
     val sheetState = rememberModalBottomSheetState()
-    var title by remember { mutableStateOf("") }
-    var selectedParent by remember { mutableStateOf<Task?>(null) }
-    var primaryCategoryId by remember { mutableStateOf<Long?>(null) }
-    val secondaryCategoryIds = remember { mutableStateListOf<Long>() }
+    var title by remember { mutableStateOf(task.title) }
+    var selectedParent by remember { mutableStateOf(availableParentTasks.find { it.id == task.parentId }) }
+    var primaryCategoryId by remember { mutableStateOf(task.primaryCategoryId) }
+    val secondaryCategoryIds = remember { mutableStateListOf<Long>().apply { addAll(currentSecondaryCategoryIds) } }
 
     var showCreateCategoryDialog by remember { mutableStateOf(false) }
 
-    // 1. Filtered Categories (for selection inside the sheet)
+    // Filter out the current task itself from available parent tasks to prevent cyclic dependency
+    val safeParentTasks = remember(task, availableParentTasks) {
+        availableParentTasks.filter { it.id != task.id }
+    }
+
+    // 1. Filtered Categories
     val filteredCategories = remember(selectedParent, allCategories) {
         if (selectedParent == null) {
             allCategories
@@ -84,17 +93,14 @@ fun AddTaskSheet(
         }
     }
 
-    // 2. Filtered Parent Tasks (based on already selected primary or secondary categories)
-    val filteredParentTasks = remember(primaryCategoryId, secondaryCategoryIds.toList(), availableParentTasks) {
-        availableParentTasks.filter { parent ->
+    // 2. Filtered Parent Tasks
+    val filteredParentTasks = remember(primaryCategoryId, secondaryCategoryIds.toList(), safeParentTasks) {
+        safeParentTasks.filter { parent ->
             val parentPrimaryId = parent.primaryCategoryId
             val parentSecondaryIds = parentSecondaryCategoriesLookup(parent.id).map { it.id }
             val parentAllCategoryIds = (if (parentPrimaryId != null) listOf(parentPrimaryId) else emptyList()) + parentSecondaryIds
             
-            // Parent must have the subtask's primary category if one is selected
             val matchesPrimary = primaryCategoryId == null || primaryCategoryId in parentAllCategoryIds
-            
-            // Parent must have ALL of the subtask's secondary categories
             val matchesSecondary = secondaryCategoryIds.all { it in parentAllCategoryIds }
             
             matchesPrimary && matchesSecondary
@@ -121,11 +127,24 @@ fun AddTaskSheet(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Add New Task",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Edit Task",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Task",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
 
             // 1. Task Title Input
             OutlinedTextField(
@@ -332,7 +351,7 @@ fun AddTaskSheet(
                     },
                     enabled = title.isNotBlank()
                 ) {
-                    Text("Confirm")
+                    Text("Save")
                 }
             }
         }

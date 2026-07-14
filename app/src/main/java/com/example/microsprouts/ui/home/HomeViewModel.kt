@@ -90,6 +90,12 @@ class HomeViewModel(
         }
     }
 
+    fun insertCategory(name: String, colorHex: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertCategory(Category(name = name, colorHex = colorHex))
+        }
+    }
+
     fun insertTask(
         title: String,
         primaryCategoryId: Long?,
@@ -108,6 +114,28 @@ class HomeViewModel(
                     TaskCategoryCrossRef(taskId = newTaskId, categoryId = catId)
                 )
             }
+        }
+    }
+
+    fun updateTask(
+        task: Task,
+        secondaryCategoryIds: List<Long>
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertTask(task)
+            repository.deleteSecondaryCategoriesForTask(task.id)
+            secondaryCategoryIds.forEach { catId ->
+                repository.insertSecondaryCategory(
+                    TaskCategoryCrossRef(taskId = task.id, categoryId = catId)
+                )
+            }
+        }
+    }
+
+    fun deleteTask(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteTaskById(id)
+            repository.deleteSecondaryCategoriesForTask(id)
         }
     }
 

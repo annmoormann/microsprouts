@@ -16,12 +16,17 @@ class TaskRepository(
 
     suspend fun clearAllTasks() = taskDao.clearAllTasks()
 
+    suspend fun deleteTaskById(id: Long) = taskDao.deleteTaskById(id)
+
     suspend fun getAllCategories(): List<Category> = taskDao.getAllCategories()
 
     suspend fun insertCategory(category: Category) = taskDao.insertCategory(category)
 
     suspend fun insertSecondaryCategory(crossRef: TaskCategoryCrossRef) =
         taskDao.insertSecondaryCategory(crossRef)
+
+    suspend fun deleteSecondaryCategoriesForTask(taskId: Long) =
+        taskDao.deleteSecondaryCategoriesForTask(taskId)
 
     suspend fun getSecondaryCategoriesForTask(taskId: Long): List<Category> =
         taskDao.getSecondaryCategoriesForTask(taskId)
