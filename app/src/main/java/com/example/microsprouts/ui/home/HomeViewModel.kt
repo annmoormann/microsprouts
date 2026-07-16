@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.microsprouts.data.entity.Category
 import com.example.microsprouts.data.entity.Task
 import com.example.microsprouts.data.entity.TaskCategoryCrossRef
+import com.example.microsprouts.data.entity.TaskList
 import com.example.microsprouts.data.repository.TaskRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -19,33 +20,13 @@ class HomeViewModel(
     private val repository: TaskRepository,
 ) : ViewModel() {
 
-    val todayTasks: StateFlow<List<Task>> = repository.allTasks
-        .map { tasks ->
-            tasks.filter { task ->
-                val isParent = task.parentId == null
-                val isDailyOrOnce = (task.recurrence == "Daily") || task.recurrence.isNullOrEmpty()
-                isParent && isDailyOrOnce
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
+    val todayTasks = repository.allTasks.map { tasks ->
+        tasks.filter { it.currentList == TaskList.TODAY }
+    }
 
-    val laterTasks: StateFlow<List<Task>> = repository.allTasks
-        .map { tasks ->
-            tasks.filter { task ->
-                val isParent = task.parentId == null
-                val isLater = !task.recurrence.isNullOrEmpty() && (task.recurrence != "Daily")
-                isParent && isLater
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
+    val laterTasks = repository.allTasks.map { tasks ->
+        tasks.filter { it.currentList == TaskList.LATER }
+    }
 
     val subtasks: StateFlow<Map<Long, List<Task>>> = repository.allTasks
         .map { tasks ->
@@ -105,8 +86,8 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val task = Task(
                 title = title,
+                parentId = parentId,
                 primaryCategoryId = primaryCategoryId,
-                parentId = parentId
             )
             val newTaskId = repository.insertTask(task)
             secondaryCategoryIds.forEach { catId ->
@@ -142,6 +123,26 @@ class HomeViewModel(
     fun toggleTaskCompletion(task: Task) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.insertTask(task.copy(isCompleted = !task.isCompleted))
+        }
+    }
+
+    /**
+     * Moves a task explicitly to the "For Today" tab list.
+     */
+    fun moveTaskToToday(task: Task) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val updatedTask = task.copy(currentList = TaskList.TODAY)
+            repository.insertTask(updatedTask) // Room updates existing rows if IDs match
+        }
+    }
+
+    /**
+     * Moves a task explicitly to the "For Later" tab list.
+     */
+    fun moveTaskToLater(task: Task) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val updatedTask = task.copy(currentList = TaskList.LATER)
+            repository.insertTask(updatedTask)
         }
     }
 
