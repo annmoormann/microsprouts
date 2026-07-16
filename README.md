@@ -1,0 +1,1 @@
+I couldn't find a task app that did what I wanted so I'm vibe coding one. Probably not of broad interest to anyone but public makes it easier to share around and I don't think there's anything particularly unique in the source code that wouldn't be obvious from the app.
