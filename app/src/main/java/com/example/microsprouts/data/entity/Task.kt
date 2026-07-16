@@ -1,40 +1,36 @@
 package com.example.microsprouts.data.entity
 
 import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(
-    tableName = "tasks",
-    foreignKeys = [
-        ForeignKey(
-            entity = Task::class,
-            parentColumns = ["id"],
-            childColumns = ["parentId"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = Category::class,
-            parentColumns = ["id"],
-            childColumns = ["primaryCategoryId"],
-            onDelete = ForeignKey.SET_NULL
-        )
-    ],
-    indices = [
-        Index(value = ["parentId"]),
-        Index(value = ["primaryCategoryId"])
-    ]
-)
+// enum representing where the task physically sits right now
+enum class TaskList { TODAY, LATER }
+
+// enum mapping your custom recurrence collision settings
+enum class RecurrenceBehavior {
+    SKIP,     // "Skip adding a new task"
+    REPLACE,  // "Replace the current task"
+    STACK     // "Add another task to the list"
+}
+
+@Entity(tableName = "tasks")
 data class Task(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0L,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val title: String,
     val description: String = "",
     val isCompleted: Boolean = false,
-    val startTimeOfDay: String = "09:00",
-    val recurrence: String? = null,
-    val missedBehavior: MissedBehavior = MissedBehavior.ADD_NEW,
+
+    // Explicitly tracks which list was open when created/moved
+    val currentList: TaskList = TaskList.TODAY,
+
+    // Recurrence configuration
+    val isRecurring: Boolean = false,
+    val intervalDays: Int = 1, // e.g., 1 for Daily, 7 for Weekly
+    val recurrenceBehavior: RecurrenceBehavior = RecurrenceBehavior.SKIP,
+
+    // Tracing date generation so we can calculate when intervals pass
+    val lastGeneratedTimestamp: Long = System.currentTimeMillis(),
+
     val parentId: Long? = null,
-    val primaryCategoryId: Long? = null
+    val primaryCategoryId: Long? = null,
 )

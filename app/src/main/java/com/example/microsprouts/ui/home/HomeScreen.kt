@@ -1,6 +1,7 @@
 package com.example.microsprouts.ui.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -38,6 +41,7 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -57,6 +61,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.microsprouts.R
 import com.example.microsprouts.data.entity.Task
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
+import com.example.microsprouts.data.entity.TaskList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,7 +75,6 @@ fun HomeScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Today", "Later")
-
     val todayTasks by viewModel.todayTasks.collectAsStateWithLifecycle()
     val laterTasks by viewModel.laterTasks.collectAsStateWithLifecycle()
     val subtasks by viewModel.subtasks.collectAsStateWithLifecycle()
@@ -193,13 +202,73 @@ fun HomeScreen(
                 ) {
                     items(activeTasks, key = { it.id }) { parentTask ->
                         val taskSubtasks = subtasks[parentTask.id] ?: emptyList()
-                        ParentTaskCard(
-                            task = parentTask,
-                            subtasks = taskSubtasks,
-                            onToggle = { viewModel.toggleTaskCompletion(it) },
-                            onCardClick = { editingTask = parentTask },
-                            onSubtaskClick = { editingTask = it }
+
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { dismissValue ->
+                                when (dismissValue) {
+                                    SwipeToDismissBoxValue.StartToEnd -> {
+                                        if (selectedTab == 0) {
+                                            viewModel.moveTaskToLater(parentTask)
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                    SwipeToDismissBoxValue.EndToStart -> {
+                                        if (selectedTab == 1) {
+                                            viewModel.moveTaskToToday(parentTask)
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                    else -> false
+                                }
+                            }
                         )
+
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            enableDismissFromStartToEnd = (selectedTab == 0),
+                            enableDismissFromEndToStart = (selectedTab == 1),
+                            backgroundContent = {
+                                val color = when (dismissState.dismissDirection) {
+                                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFFE6EFE9) // Calm sage green
+                                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFEBF3FC) // Calm blue
+                                    else -> Color.Transparent
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(color, shape = RoundedCornerShape(16.dp))
+                                        .padding(horizontal = 24.dp),
+                                    contentAlignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                                        Alignment.CenterStart
+                                    } else {
+                                        Alignment.CenterEnd
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                                            "Move to Later ➔"
+                                        } else {
+                                            "⇠ Move to Today"
+                                        },
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        ) {
+                            ParentTaskCard(
+                                task = parentTask,
+                                subtasks = taskSubtasks,
+                                onToggle = { viewModel.toggleTaskCompletion(it) },
+                                onCardClick = { editingTask = parentTask },
+                                onSubtaskClick = { editingTask = it }
+                            )
+                        }
                     }
                 }
             }
@@ -327,13 +396,14 @@ fun ParentTaskCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    if (!task.recurrence.isNullOrEmpty()) {
+                    if (task.isRecurring) {
+                        val recurrenceLabel = if (task.intervalDays == 1) "Daily" else "Every ${task.intervalDays} days"
                         Text(
-                            text = "Recurrence: ${task.recurrence}",
+                            text = "Recurrence: $recurrenceLabel (${task.recurrenceBehavior.name})",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.padding(top = 2.dp),
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                 }

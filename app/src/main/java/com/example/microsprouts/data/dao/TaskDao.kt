@@ -8,6 +8,7 @@ import com.example.microsprouts.data.entity.Category
 import com.example.microsprouts.data.entity.Task
 import com.example.microsprouts.data.entity.TaskCategoryCrossRef
 import kotlinx.coroutines.flow.Flow
+import androidx.room.Delete
 
 @Dao
 interface TaskDao {
@@ -41,4 +42,10 @@ interface TaskDao {
 
     @Query("SELECT * FROM categories WHERE id IN (SELECT categoryId FROM task_category_cross_ref WHERE taskId = :taskId)")
     suspend fun getSecondaryCategoriesForTask(taskId: Long): List<Category>
+
+    @Query("SELECT * FROM tasks")
+    fun getAllTasksRaw(): List<Task>
+
+    @Delete
+    suspend fun deleteTask(task: Task)
 }
