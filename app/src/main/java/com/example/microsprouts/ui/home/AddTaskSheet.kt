@@ -35,6 +35,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +46,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.microsprouts.data.entity.Category
+import com.example.microsprouts.data.entity.MonthlyRuleType
+import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.Task
+import com.example.microsprouts.data.entity.YearlyRuleType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +59,15 @@ fun AddTaskSheet(
         title: String,
         primaryCategoryId: Long?,
         secondaryCategoryIds: List<Long>,
-        parentId: Long?
+        parentId: Long?,
+        isRecurring: Boolean,
+        recurrenceUnit: RecurrenceUnit,
+        intervalValue: Int,
+        monthlyRuleType: MonthlyRuleType,
+        monthlyDayOfMonth: Int,
+        yearlyRuleType: YearlyRuleType,
+        yearlyMonth: Int,
+        yearlyDayOfMonth: Int
     ) -> Unit,
     availableParentTasks: List<Task>,
     allCategories: List<Category>,
@@ -70,7 +82,17 @@ fun AddTaskSheet(
 
     var showCreateCategoryDialog by remember { mutableStateOf(false) }
 
-    // 1. Filtered Categories (for selection inside the sheet)
+    // Recurrence State Tracking Variables
+    var isRecurring by remember { mutableStateOf(false) }
+    var recurrenceUnit by remember { mutableStateOf(RecurrenceUnit.DAILY) }
+    var intervalValue by remember { mutableIntStateOf(1) }
+    var monthlyRuleType by remember { mutableStateOf(MonthlyRuleType.INTERVAL) }
+    var monthlyDayOfMonth by remember { mutableIntStateOf(1) }
+    var yearlyRuleType by remember { mutableStateOf(YearlyRuleType.INTERVAL) }
+    var yearlyMonth by remember { mutableIntStateOf(1) }
+    var yearlyDayOfMonth by remember { mutableIntStateOf(1) }
+
+    // 1. Filtered Categories
     val filteredCategories = remember(selectedParent, allCategories) {
         if (selectedParent == null) {
             allCategories
@@ -84,19 +106,16 @@ fun AddTaskSheet(
         }
     }
 
-    // 2. Filtered Parent Tasks (based on already selected primary or secondary categories)
+    // 2. Filtered Parent Tasks
     val filteredParentTasks = remember(primaryCategoryId, secondaryCategoryIds.toList(), availableParentTasks) {
         availableParentTasks.filter { parent ->
             val parentPrimaryId = parent.primaryCategoryId
             val parentSecondaryIds = parentSecondaryCategoriesLookup(parent.id).map { it.id }
             val parentAllCategoryIds = (if (parentPrimaryId != null) listOf(parentPrimaryId) else emptyList()) + parentSecondaryIds
-            
-            // Parent must have the subtask's primary category if one is selected
+
             val matchesPrimary = primaryCategoryId == null || primaryCategoryId in parentAllCategoryIds
-            
-            // Parent must have ALL of the subtask's secondary categories
             val matchesSecondary = secondaryCategoryIds.all { it in parentAllCategoryIds }
-            
+
             matchesPrimary && matchesSecondary
         }
     }
@@ -118,7 +137,8 @@ fun AddTaskSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState()), // Enables scrolling when expanded settings overflow screen
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -195,9 +215,7 @@ fun AddTaskSheet(
             }
 
             // 3. Secondary Categories Checkboxes
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Secondary Categories",
                     style = MaterialTheme.typography.titleSmall,
@@ -265,7 +283,7 @@ fun AddTaskSheet(
                 }
             }
 
-            // 4. Parent Task Selector (Filtered based on category selections)
+            // 4. Parent Task Selector
             var parentDropdownExpanded by remember { mutableStateOf(false) }
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
@@ -309,6 +327,26 @@ fun AddTaskSheet(
                 }
             }
 
+            // 5. Dynamic Recurrence Picker Component
+            RecurrencePicker(
+                isRecurring = isRecurring,
+                onIsRecurringChange = { isRecurring = it },
+                recurrenceUnit = recurrenceUnit,
+                onRecurrenceUnitChange = { recurrenceUnit = it },
+                intervalValue = intervalValue,
+                onIntervalValueChange = { intervalValue = it },
+                monthlyRuleType = monthlyRuleType,
+                onMonthlyRuleTypeChange = { monthlyRuleType = it },
+                monthlyDayOfMonth = monthlyDayOfMonth,
+                onMonthlyDayOfMonthChange = { monthlyDayOfMonth = it },
+                yearlyRuleType = yearlyRuleType,
+                onYearlyRuleTypeChange = { yearlyRuleType = it },
+                yearlyMonth = yearlyMonth,
+                onYearlyMonthChange = { yearlyMonth = it },
+                yearlyDayOfMonth = yearlyDayOfMonth,
+                onYearlyDayOfMonthChange = { yearlyDayOfMonth = it }
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Action Buttons
@@ -327,7 +365,15 @@ fun AddTaskSheet(
                             title.trim(),
                             primaryCategoryId,
                             secondaryCategoryIds.toList(),
-                            selectedParent?.id
+                            selectedParent?.id,
+                            isRecurring,
+                            recurrenceUnit,
+                            intervalValue,
+                            monthlyRuleType,
+                            monthlyDayOfMonth,
+                            yearlyRuleType,
+                            yearlyMonth,
+                            yearlyDayOfMonth
                         )
                     },
                     enabled = title.isNotBlank()
@@ -338,7 +384,7 @@ fun AddTaskSheet(
         }
     }
 
-    // Inline category creation nested alert dialog
+    // Inline category creation dialog
     if (showCreateCategoryDialog) {
         var newCategoryName by remember { mutableStateOf("") }
         var newCategoryColorHex by remember { mutableStateOf("#6C8E75") }
