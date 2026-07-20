@@ -47,9 +47,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.microsprouts.data.entity.Category
 import com.example.microsprouts.data.entity.MonthlyRuleType
+import com.example.microsprouts.data.entity.RecurrenceBehavior
 import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.Task
 import com.example.microsprouts.data.entity.YearlyRuleType
+import com.example.microsprouts.ui.components.RecurrencePicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +93,7 @@ fun AddTaskSheet(
     var yearlyRuleType by remember { mutableStateOf(YearlyRuleType.INTERVAL) }
     var yearlyMonth by remember { mutableIntStateOf(1) }
     var yearlyDayOfMonth by remember { mutableIntStateOf(1) }
+    var recurrenceBehavior by remember { mutableStateOf(RecurrenceBehavior.SKIP) }
 
     // 1. Filtered Categories
     val filteredCategories = remember(selectedParent, allCategories) {
@@ -138,7 +141,7 @@ fun AddTaskSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState()), // Enables scrolling when expanded settings overflow screen
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -344,7 +347,9 @@ fun AddTaskSheet(
                 yearlyMonth = yearlyMonth,
                 onYearlyMonthChange = { yearlyMonth = it },
                 yearlyDayOfMonth = yearlyDayOfMonth,
-                onYearlyDayOfMonthChange = { yearlyDayOfMonth = it }
+                onYearlyDayOfMonthChange = { yearlyDayOfMonth = it },
+                recurrenceBehavior = recurrenceBehavior,
+                onRecurrenceBehaviorChange = { recurrenceBehavior = it }
             )
 
             Spacer(modifier = Modifier.height(8.dp))

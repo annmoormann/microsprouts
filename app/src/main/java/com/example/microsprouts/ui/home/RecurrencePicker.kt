@@ -1,21 +1,34 @@
-package com.example.microsprouts.ui.home
+package com.example.microsprouts.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.microsprouts.data.entity.MonthlyRuleType
+import com.example.microsprouts.data.entity.RecurrenceBehavior
 import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.YearlyRuleType
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecurrencePicker(
     isRecurring: Boolean,
@@ -33,42 +46,49 @@ fun RecurrencePicker(
     yearlyMonth: Int,
     onYearlyMonthChange: (Int) -> Unit,
     yearlyDayOfMonth: Int,
-    onYearlyDayOfMonthChange: (Int) -> Unit
+    onYearlyDayOfMonthChange: (Int) -> Unit,
+    recurrenceBehavior: RecurrenceBehavior,
+    onRecurrenceBehaviorChange: (RecurrenceBehavior) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-
-        // 1. Standalone Checkbox: Toggles between One-Off and Repeating
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize() // Smoothly animates size expansion to avoid scroll jumps
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
         ) {
             Checkbox(
                 checked = isRecurring,
                 onCheckedChange = onIsRecurringChange
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Repeat Task", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = "Repeat Task",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
 
-        // 2. Hidden Content Section (Only slides open if checked)
         AnimatedVisibility(
             visible = isRecurring,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
         ) {
-            Column(modifier = Modifier.padding(start = 32.dp, top = 4.dp)) {
-
-                // Interval Unit Selection Row
-                Text(
-                    text = "Recurrence Interval",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Column(
+                modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Unit Selection Chips
+                Text("Frequency", style = MaterialTheme.typography.labelLarge)
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    RecurrenceUnit.values().forEach { unit ->
+                    RecurrenceUnit.entries.forEach { unit ->
                         FilterChip(
                             selected = recurrenceUnit == unit,
                             onClick = { onRecurrenceUnitChange(unit) },
@@ -77,175 +97,141 @@ fun RecurrencePicker(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                // Interval Input
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Every", style = MaterialTheme.typography.bodyMedium)
+                    OutlinedTextField(
+                        value = intervalValue.toString(),
+                        onValueChange = { newValue ->
+                            newValue.toIntOrNull()?.let { onIntervalValueChange(it.coerceAtLeast(1)) }
+                        },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    Text(
+                        text = when (recurrenceUnit) {
+                            RecurrenceUnit.DAILY -> if (intervalValue > 1) "days" else "day"
+                            RecurrenceUnit.WEEKLY -> if (intervalValue > 1) "weeks" else "week"
+                            RecurrenceUnit.MONTHLY -> if (intervalValue > 1) "months" else "month"
+                            RecurrenceUnit.YEARLY -> if (intervalValue > 1) "years" else "year"
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
 
-                // 3. Conditional Visibility for Sub-Options
-                when (recurrenceUnit) {
-                    RecurrenceUnit.DAILY -> {
-                        StandardIntervalInput(label = "days", value = intervalValue, onValueChange = onIntervalValueChange)
-                    }
-                    RecurrenceUnit.WEEKLY -> {
-                        StandardIntervalInput(label = "weeks", value = intervalValue, onValueChange = onIntervalValueChange)
-                    }
-                    RecurrenceUnit.MONTHLY -> {
-                        MonthlyOptions(
-                            intervalValue = intervalValue,
-                            onIntervalValueChange = onIntervalValueChange,
-                            monthlyRuleType = monthlyRuleType,
-                            onMonthlyRuleTypeChange = onMonthlyRuleTypeChange,
-                            monthlyDayOfMonth = monthlyDayOfMonth,
-                            onMonthlyDayOfMonthChange = onMonthlyDayOfMonthChange
-                        )
-                    }
-                    RecurrenceUnit.YEARLY -> {
-                        YearlyOptions(
-                            intervalValue = intervalValue,
-                            onIntervalValueChange = onIntervalValueChange,
-                            yearlyRuleType = yearlyRuleType,
-                            onYearlyRuleTypeChange = onYearlyRuleTypeChange,
-                            yearlyMonth = yearlyMonth,
-                            onYearlyMonthChange = onYearlyMonthChange,
-                            yearlyDayOfMonth = yearlyDayOfMonth,
-                            onYearlyDayOfMonthChange = onYearlyDayOfMonthChange
-                        )
+                // Monthly Secondary Rules
+                if (recurrenceUnit == RecurrenceUnit.MONTHLY) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Monthly Rule", style = MaterialTheme.typography.labelLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = monthlyRuleType == MonthlyRuleType.INTERVAL,
+                                onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.INTERVAL) },
+                                label = { Text("Every X Months") }
+                            )
+                            FilterChip(
+                                selected = monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY,
+                                onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.SPECIFIC_DAY) },
+                                label = { Text("Specific Day") }
+                            )
+                        }
+
+                        if (monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Day of month: ", style = MaterialTheme.typography.bodyMedium)
+                                OutlinedTextField(
+                                    value = monthlyDayOfMonth.toString(),
+                                    onValueChange = { newDay ->
+                                        newDay.toIntOrNull()?.let { onMonthlyDayOfMonthChange(it.coerceIn(1, 31)) }
+                                    },
+                                    singleLine = true
+                                )
+                            }
+                        }
                     }
                 }
-            }
-        }
-    }
-}
 
-@Composable
-fun StandardIntervalInput(label: String, value: Int, onValueChange: (Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Every ", style = MaterialTheme.typography.bodyMedium)
-        OutlinedTextField(
-            value = if (value == 0) "" else value.toString(),
-            onValueChange = { newValue ->
-                onValueChange(newValue.filter { it.isDigit() }.toIntOrNull() ?: 1)
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.width(70.dp).padding(horizontal = 4.dp),
-            singleLine = true
-        )
-        Text(" $label", style = MaterialTheme.typography.bodyMedium)
-    }
-}
+                // Yearly Secondary Rules
+                if (recurrenceUnit == RecurrenceUnit.YEARLY) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Yearly Rule", style = MaterialTheme.typography.labelLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = yearlyRuleType == YearlyRuleType.INTERVAL,
+                                onClick = { onYearlyRuleTypeChange(YearlyRuleType.INTERVAL) },
+                                label = { Text("Every X Years") }
+                            )
+                            FilterChip(
+                                selected = yearlyRuleType == YearlyRuleType.SPECIFIC_DATE,
+                                onClick = { onYearlyRuleTypeChange(YearlyRuleType.SPECIFIC_DATE) },
+                                label = { Text("Specific Date") }
+                            )
+                        }
 
-@Composable
-fun MonthlyOptions(
-    intervalValue: Int,
-    onIntervalValueChange: (Int) -> Unit,
-    monthlyRuleType: MonthlyRuleType,
-    onMonthlyRuleTypeChange: (MonthlyRuleType) -> Unit,
-    monthlyDayOfMonth: Int,
-    onMonthlyDayOfMonthChange: (Int) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = monthlyRuleType == MonthlyRuleType.INTERVAL,
-                onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.INTERVAL) }
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("By interval", style = MaterialTheme.typography.bodyMedium)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY,
-                onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.SPECIFIC_DAY) }
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("On specific day of month", style = MaterialTheme.typography.bodyMedium)
-        }
+                        if (yearlyRuleType == YearlyRuleType.SPECIFIC_DATE) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Month:", style = MaterialTheme.typography.bodyMedium)
+                                OutlinedTextField(
+                                    value = yearlyMonth.toString(),
+                                    onValueChange = { m ->
+                                        m.toIntOrNull()?.let { onYearlyMonthChange(it.coerceIn(1, 12)) }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                Text("Day:", style = MaterialTheme.typography.bodyMedium)
+                                OutlinedTextField(
+                                    value = yearlyDayOfMonth.toString(),
+                                    onValueChange = { d ->
+                                        d.toIntOrNull()?.let { onYearlyDayOfMonthChange(it.coerceIn(1, 31)) }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+                        }
+                    }
+                }
 
-        Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-        // Nest the secondary reveal based on radio choices
-        if (monthlyRuleType == MonthlyRuleType.INTERVAL) {
-            StandardIntervalInput(label = "months", value = intervalValue, onValueChange = onIntervalValueChange)
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("On day ", style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(
-                    value = monthlyDayOfMonth.toString(),
-                    onValueChange = { newValue ->
-                        val day = newValue.filter { it.isDigit() }.toIntOrNull() ?: 1
-                        onMonthlyDayOfMonthChange(day.coerceIn(1, 31))
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.width(70.dp).padding(horizontal = 4.dp),
-                    singleLine = true
-                )
-                Text(" of the month", style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-    }
-}
-
-@Composable
-fun YearlyOptions(
-    intervalValue: Int,
-    onIntervalValueChange: (Int) -> Unit,
-    yearlyRuleType: YearlyRuleType,
-    onYearlyRuleTypeChange: (YearlyRuleType) -> Unit,
-    yearlyMonth: Int,
-    onYearlyMonthChange: (Int) -> Unit,
-    yearlyDayOfMonth: Int,
-    onYearlyDayOfMonthChange: (Int) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = yearlyRuleType == YearlyRuleType.INTERVAL,
-                onClick = { onYearlyRuleTypeChange(YearlyRuleType.INTERVAL) }
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("By interval", style = MaterialTheme.typography.bodyMedium)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = yearlyRuleType == YearlyRuleType.SPECIFIC_DATE,
-                onClick = { onYearlyRuleTypeChange(YearlyRuleType.SPECIFIC_DATE) }
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("On specific date each year", style = MaterialTheme.typography.bodyMedium)
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Nest the secondary reveal based on radio choices
-        if (yearlyRuleType == YearlyRuleType.INTERVAL) {
-            StandardIntervalInput(label = "years", value = intervalValue, onValueChange = onIntervalValueChange)
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("On:", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(8.dp))
-                OutlinedTextField(
-                    value = yearlyMonth.toString(),
-                    onValueChange = { newValue ->
-                        val month = newValue.filter { it.isDigit() }.toIntOrNull() ?: 1
-                        onYearlyMonthChange(month.coerceIn(1, 12))
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.width(60.dp),
-                    singleLine = true,
-                    label = { Text("Month") }
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("/", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(4.dp))
-                OutlinedTextField(
-                    value = yearlyDayOfMonth.toString(),
-                    onValueChange = { newValue ->
-                        val day = newValue.filter { it.isDigit() }.toIntOrNull() ?: 1
-                        onYearlyDayOfMonthChange(day.coerceIn(1, 31))
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.width(60.dp),
-                    singleLine = true,
-                    label = { Text("Day") }
-                )
+                // Recurrence Behavior (SKIP / REPLACE / STACK)
+                Text("When due date passes:", style = MaterialTheme.typography.labelLarge)
+                Column {
+                    RecurrenceBehavior.entries.forEach { behavior ->
+                        val labelText = when (behavior) {
+                            RecurrenceBehavior.SKIP -> "Skip (Move due date to next interval)"
+                            RecurrenceBehavior.REPLACE -> "Replace (Overwrites current unfinished task)"
+                            RecurrenceBehavior.STACK -> "Stack (Creates an additional task copy)"
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (recurrenceBehavior == behavior),
+                                    onClick = { onRecurrenceBehaviorChange(behavior) }
+                                )
+                                .padding(vertical = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = (recurrenceBehavior == behavior),
+                                onClick = { onRecurrenceBehaviorChange(behavior) }
+                            )
+                            Text(
+                                text = labelText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
