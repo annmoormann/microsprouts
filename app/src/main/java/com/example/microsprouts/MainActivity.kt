@@ -5,21 +5,29 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.microsprouts.data.database.MicroSproutsDatabase
 import com.example.microsprouts.data.repository.TaskRepository
+import com.example.microsprouts.data.worker.MissedBehaviorWorker
 import com.example.microsprouts.ui.home.HomeScreen
 import com.example.microsprouts.ui.home.HomeViewModel
-import com.example.microsprouts.ui.home.HomeViewModelFactory // If you have a factory, otherwise use dynamic creation
+import com.example.microsprouts.ui.home.HomeViewModelFactory
 import com.example.microsprouts.ui.theme.MicroSproutsTheme
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Schedule the background WorkManager task rollover engine
+        setupDailyRolloverWorker()
 
         // Initialize the Database and Repository
         val database = MicroSproutsDatabase.getDatabase(applicationContext)
@@ -40,5 +48,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun setupDailyRolloverWorker() {
+        val rolloverWorkRequest = PeriodicWorkRequestBuilder<MissedBehaviorWorker>(
+            24, TimeUnit.HOURS
+        ).build()
+
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "MicroSproutsDailyRollover",
+            ExistingPeriodicWorkPolicy.KEEP,
+            rolloverWorkRequest
+        )
     }
 }
