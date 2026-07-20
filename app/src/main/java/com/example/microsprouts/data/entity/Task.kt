@@ -13,6 +13,21 @@ enum class RecurrenceBehavior {
     STACK     // "Add another task to the list"
 }
 
+// New Enums for advanced intervals
+enum class RecurrenceUnit {
+    DAILY, WEEKLY, MONTHLY, YEARLY
+}
+
+enum class MonthlyRuleType {
+    INTERVAL,    // "Every X months"
+    SPECIFIC_DAY // "On day Y of the month"
+}
+
+enum class YearlyRuleType {
+    INTERVAL,     // "Every X years"
+    SPECIFIC_DATE // "On Month X, Day Y"
+}
+
 @Entity(tableName = "tasks")
 data class Task(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
@@ -30,6 +45,15 @@ data class Task(
 
     // Tracing date generation so we can calculate when intervals pass
     val lastGeneratedTimestamp: Long = System.currentTimeMillis(),
+
+    // Advanced recurrence metadata fields
+    val recurrenceUnit: RecurrenceUnit = RecurrenceUnit.DAILY,
+    val intervalValue: Int = 1,
+    val monthlyRuleType: MonthlyRuleType = MonthlyRuleType.INTERVAL,
+    val monthlyDayOfMonth: Int = 1,
+    val yearlyRuleType: YearlyRuleType = YearlyRuleType.INTERVAL,
+    val yearlyMonth: Int = 1,
+    val yearlyDayOfMonth: Int = 1,
 
     val parentId: Long? = null,
     val primaryCategoryId: Long? = null,

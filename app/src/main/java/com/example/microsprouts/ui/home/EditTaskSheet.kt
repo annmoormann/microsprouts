@@ -36,6 +36,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +47,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.microsprouts.data.entity.Category
+import com.example.microsprouts.data.entity.MonthlyRuleType
+import com.example.microsprouts.data.entity.RecurrenceBehavior
+import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.Task
+import com.example.microsprouts.data.entity.YearlyRuleType
+import com.example.microsprouts.ui.components.RecurrencePicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +63,16 @@ fun EditTaskSheet(
         title: String,
         primaryCategoryId: Long?,
         secondaryCategoryIds: List<Long>,
-        parentId: Long?
+        parentId: Long?,
+        isRecurring: Boolean,
+        recurrenceUnit: RecurrenceUnit,
+        intervalValue: Int,
+        monthlyRuleType: MonthlyRuleType,
+        monthlyDayOfMonth: Int,
+        yearlyRuleType: YearlyRuleType,
+        yearlyMonth: Int,
+        yearlyDayOfMonth: Int,
+        recurrenceBehavior: RecurrenceBehavior
     ) -> Unit,
     onDelete: () -> Unit,
     availableParentTasks: List<Task>,
@@ -73,6 +88,17 @@ fun EditTaskSheet(
     val secondaryCategoryIds = remember { mutableStateListOf<Long>().apply { addAll(currentSecondaryCategoryIds) } }
 
     var showCreateCategoryDialog by remember { mutableStateOf(false) }
+
+    // Recurrence State Tracking Variables initialized from task entity
+    var isRecurring by remember { mutableStateOf(task.isRecurring) }
+    var recurrenceUnit by remember { mutableStateOf(task.recurrenceUnit) }
+    var intervalValue by remember { mutableIntStateOf(task.intervalValue) }
+    var monthlyRuleType by remember { mutableStateOf(task.monthlyRuleType) }
+    var monthlyDayOfMonth by remember { mutableIntStateOf(task.monthlyDayOfMonth) }
+    var yearlyRuleType by remember { mutableStateOf(task.yearlyRuleType) }
+    var yearlyMonth by remember { mutableIntStateOf(task.yearlyMonth) }
+    var yearlyDayOfMonth by remember { mutableIntStateOf(task.yearlyDayOfMonth) }
+    var recurrenceBehavior by remember { mutableStateOf(task.recurrenceBehavior) }
 
     // Filter out the current task itself from available parent tasks to prevent cyclic dependency
     val safeParentTasks = remember(task, availableParentTasks) {
@@ -99,10 +125,10 @@ fun EditTaskSheet(
             val parentPrimaryId = parent.primaryCategoryId
             val parentSecondaryIds = parentSecondaryCategoriesLookup(parent.id).map { it.id }
             val parentAllCategoryIds = (if (parentPrimaryId != null) listOf(parentPrimaryId) else emptyList()) + parentSecondaryIds
-            
+
             val matchesPrimary = primaryCategoryId == null || primaryCategoryId in parentAllCategoryIds
             val matchesSecondary = secondaryCategoryIds.all { it in parentAllCategoryIds }
-            
+
             matchesPrimary && matchesSecondary
         }
     }
@@ -124,7 +150,8 @@ fun EditTaskSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
@@ -328,6 +355,28 @@ fun EditTaskSheet(
                 }
             }
 
+            // 5. Dynamic Recurrence Picker Component
+            RecurrencePicker(
+                isRecurring = isRecurring,
+                onIsRecurringChange = { isRecurring = it },
+                recurrenceUnit = recurrenceUnit,
+                onRecurrenceUnitChange = { recurrenceUnit = it },
+                intervalValue = intervalValue,
+                onIntervalValueChange = { intervalValue = it },
+                monthlyRuleType = monthlyRuleType,
+                onMonthlyRuleTypeChange = { monthlyRuleType = it },
+                monthlyDayOfMonth = monthlyDayOfMonth,
+                onMonthlyDayOfMonthChange = { monthlyDayOfMonth = it },
+                yearlyRuleType = yearlyRuleType,
+                onYearlyRuleTypeChange = { yearlyRuleType = it },
+                yearlyMonth = yearlyMonth,
+                onYearlyMonthChange = { yearlyMonth = it },
+                yearlyDayOfMonth = yearlyDayOfMonth,
+                onYearlyDayOfMonthChange = { yearlyDayOfMonth = it },
+                recurrenceBehavior = recurrenceBehavior,
+                onRecurrenceBehaviorChange = { recurrenceBehavior = it }
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Action Buttons
@@ -346,7 +395,16 @@ fun EditTaskSheet(
                             title.trim(),
                             primaryCategoryId,
                             secondaryCategoryIds.toList(),
-                            selectedParent?.id
+                            selectedParent?.id,
+                            isRecurring,
+                            recurrenceUnit,
+                            intervalValue,
+                            monthlyRuleType,
+                            monthlyDayOfMonth,
+                            yearlyRuleType,
+                            yearlyMonth,
+                            yearlyDayOfMonth,
+                            recurrenceBehavior
                         )
                     },
                     enabled = title.isNotBlank()

@@ -60,13 +60,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.microsprouts.R
+import com.example.microsprouts.data.entity.MonthlyRuleType
+import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.Task
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.map
-import com.example.microsprouts.data.entity.TaskList
+import com.example.microsprouts.data.entity.YearlyRuleType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,14 +136,14 @@ fun HomeScreen(
                 onClick = { showAddTaskSheet = true },
                 containerColor = Color(0xFF6C8E75),
                 contentColor = Color.White,
-                shape = CircleShape
+                shape = CircleShape,
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add Task"
+                    contentDescription = "Add Task",
                 )
             }
-        }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -224,7 +221,7 @@ fun HomeScreen(
                                     }
                                     else -> false
                                 }
-                            }
+                            },
                         )
 
                         SwipeToDismissBox(
@@ -233,8 +230,8 @@ fun HomeScreen(
                             enableDismissFromEndToStart = (selectedTab == 1),
                             backgroundContent = {
                                 val color = when (dismissState.dismissDirection) {
-                                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFFE6EFE9) // Calm sage green
-                                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFEBF3FC) // Calm blue
+                                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFFE6EFE9)
+                                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFEBF3FC)
                                     else -> Color.Transparent
                                 }
                                 Box(
@@ -246,7 +243,7 @@ fun HomeScreen(
                                         Alignment.CenterStart
                                     } else {
                                         Alignment.CenterEnd
-                                    }
+                                    },
                                 ) {
                                     Text(
                                         text = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
@@ -256,17 +253,17 @@ fun HomeScreen(
                                         },
                                         color = MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 14.sp
+                                        fontSize = 14.sp,
                                     )
                                 }
-                            }
+                            },
                         ) {
                             ParentTaskCard(
                                 task = parentTask,
                                 subtasks = taskSubtasks,
                                 onToggle = { viewModel.toggleTaskCompletion(it) },
                                 onCardClick = { editingTask = parentTask },
-                                onSubtaskClick = { editingTask = it }
+                                onSubtaskClick = { editingTask = it },
                             )
                         }
                     }
@@ -278,12 +275,22 @@ fun HomeScreen(
     if (showAddTaskSheet) {
         AddTaskSheet(
             onDismiss = { showAddTaskSheet = false },
-            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId ->
+            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId,
+                          isRecurring, recurrenceUnit, intervalValue, monthlyRuleType,
+                          monthlyDayOfMonth, yearlyRuleType, yearlyMonth, yearlyDayOfMonth ->
                 viewModel.insertTask(
                     title = title,
                     primaryCategoryId = primaryCategoryId,
                     secondaryCategoryIds = secondaryCategoryIds,
-                    parentId = parentId
+                    parentId = parentId,
+                    isRecurring = isRecurring,
+                    recurrenceUnit = recurrenceUnit,
+                    intervalValue = intervalValue,
+                    monthlyRuleType = monthlyRuleType,
+                    monthlyDayOfMonth = monthlyDayOfMonth,
+                    yearlyRuleType = yearlyRuleType,
+                    yearlyMonth = yearlyMonth,
+                    yearlyDayOfMonth = yearlyDayOfMonth,
                 )
                 showAddTaskSheet = false
             },
@@ -294,7 +301,7 @@ fun HomeScreen(
             },
             onCreateCategory = { name, colorHex ->
                 viewModel.insertCategory(name, colorHex)
-            }
+            },
         )
     }
 
@@ -303,12 +310,24 @@ fun HomeScreen(
         EditTaskSheet(
             task = currentTask,
             onDismiss = { editingTask = null },
-            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId ->
+            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId,
+                          isRecurring, recurrenceUnit, intervalValue, monthlyRuleType,
+                          monthlyDayOfMonth, yearlyRuleType, yearlyMonth, yearlyDayOfMonth,
+                          recurrenceBehavior ->
                 viewModel.updateTask(
                     currentTask.copy(
                         title = title,
                         primaryCategoryId = primaryCategoryId,
-                        parentId = parentId
+                        parentId = parentId,
+                        isRecurring = isRecurring,
+                        recurrenceUnit = recurrenceUnit,
+                        intervalValue = intervalValue,
+                        monthlyRuleType = monthlyRuleType,
+                        monthlyDayOfMonth = monthlyDayOfMonth,
+                        yearlyRuleType = yearlyRuleType,
+                        yearlyMonth = yearlyMonth,
+                        yearlyDayOfMonth = yearlyDayOfMonth,
+                        recurrenceBehavior = recurrenceBehavior
                     ),
                     secondaryCategoryIds
                 )
@@ -397,13 +416,12 @@ fun ParentTaskCard(
                         )
                     }
                     if (task.isRecurring) {
-                        val recurrenceLabel = if (task.intervalDays == 1) "Daily" else "Every ${task.intervalDays} days"
                         Text(
-                            text = "Recurrence: $recurrenceLabel (${task.recurrenceBehavior.name})",
+                            text = "${getRecurrenceDisplayText(task)} (${task.recurrenceBehavior.name})",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = 2.dp),
                         )
                     }
                 }
@@ -452,6 +470,34 @@ fun ParentTaskCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+fun getRecurrenceDisplayText(task: Task): String {
+    if (!task.isRecurring) return ""
+
+    val interval = task.intervalValue
+    return when (task.recurrenceUnit) {
+        RecurrenceUnit.DAILY -> {
+            if (interval == 1) "Repeats daily" else "Repeats every $interval days"
+        }
+        RecurrenceUnit.WEEKLY -> {
+            if (interval == 1) "Repeats weekly" else "Repeats every $interval weeks"
+        }
+        RecurrenceUnit.MONTHLY -> {
+            if (task.monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY) {
+                "Repeats monthly on day ${task.monthlyDayOfMonth}"
+            } else {
+                if (interval == 1) "Repeats monthly" else "Repeats every $interval months"
+            }
+        }
+        RecurrenceUnit.YEARLY -> {
+            if (task.yearlyRuleType == YearlyRuleType.SPECIFIC_DATE) {
+                "Repeats yearly on ${task.yearlyMonth}/${task.yearlyDayOfMonth}"
+            } else {
+                if (interval == 1) "Repeats yearly" else "Repeats every $interval years"
             }
         }
     }

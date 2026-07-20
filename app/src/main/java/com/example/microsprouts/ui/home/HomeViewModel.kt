@@ -3,10 +3,13 @@ package com.example.microsprouts.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microsprouts.data.entity.Category
-import com.example.microsprouts.data.entity.RecurrenceBehavior // Added import
+import com.example.microsprouts.data.entity.MonthlyRuleType
+import com.example.microsprouts.data.entity.RecurrenceBehavior
+import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.Task
 import com.example.microsprouts.data.entity.TaskCategoryCrossRef
 import com.example.microsprouts.data.entity.TaskList
+import com.example.microsprouts.data.entity.YearlyRuleType
 import com.example.microsprouts.data.repository.TaskRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -16,12 +19,14 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class HomeViewModel(
     private val repository: TaskRepository,
 ) : ViewModel() {
 
-    // Upgraded to StateFlow so HomeScreen.kt can collect lifecycle safely
     val todayTasks: StateFlow<List<Task>> = repository.allTasks
         .map { tasks -> tasks.filter { it.currentList == TaskList.TODAY } }
         .stateIn(
@@ -30,7 +35,6 @@ class HomeViewModel(
             initialValue = emptyList(),
         )
 
-    // Upgraded to StateFlow so HomeScreen.kt can collect lifecycle safely
     val laterTasks: StateFlow<List<Task>> = repository.allTasks
         .map { tasks -> tasks.filter { it.currentList == TaskList.LATER } }
         .stateIn(
@@ -76,7 +80,6 @@ class HomeViewModel(
             initialValue = emptyMap(),
         )
 
-    // Run the engine instantly when ViewModel initializes
     init {
         runMissedBehaviorEngine()
     }
@@ -93,17 +96,58 @@ class HomeViewModel(
         }
     }
 
+    // Standard 4-parameter insertion (for simple task creation)
     fun insertTask(
         title: String,
         primaryCategoryId: Long?,
         secondaryCategoryIds: List<Long>,
         parentId: Long?
     ) {
+        insertTask(
+            title = title,
+            primaryCategoryId = primaryCategoryId,
+            secondaryCategoryIds = secondaryCategoryIds,
+            parentId = parentId,
+            isRecurring = false,
+            recurrenceUnit = RecurrenceUnit.DAILY,
+            intervalValue = 1,
+            monthlyRuleType = MonthlyRuleType.INTERVAL,
+            monthlyDayOfMonth = 1,
+            yearlyRuleType = YearlyRuleType.INTERVAL,
+            yearlyMonth = 1,
+            yearlyDayOfMonth = 1
+        )
+    }
+
+    // Expanded 12-parameter insertion with full recurrence configuration
+    fun insertTask(
+        title: String,
+        primaryCategoryId: Long?,
+        secondaryCategoryIds: List<Long>,
+        parentId: Long?,
+        isRecurring: Boolean,
+        recurrenceUnit: RecurrenceUnit,
+        intervalValue: Int,
+        monthlyRuleType: MonthlyRuleType,
+        monthlyDayOfMonth: Int,
+        yearlyRuleType: YearlyRuleType,
+        yearlyMonth: Int,
+        yearlyDayOfMonth: Int
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val task = Task(
                 title = title,
                 parentId = parentId,
                 primaryCategoryId = primaryCategoryId,
+                isRecurring = isRecurring,
+                recurrenceUnit = recurrenceUnit,
+                intervalValue = intervalValue,
+                monthlyRuleType = monthlyRuleType,
+                monthlyDayOfMonth = monthlyDayOfMonth,
+                yearlyRuleType = yearlyRuleType,
+                yearlyMonth = yearlyMonth,
+                yearlyDayOfMonth = yearlyDayOfMonth,
+                lastGeneratedTimestamp = System.currentTimeMillis()
             )
             val newTaskId = repository.insertTask(task)
             secondaryCategoryIds.forEach { catId ->
@@ -142,19 +186,13 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Moves a task explicitly to the "For Today" tab list.
-     */
     fun moveTaskToToday(task: Task) {
         viewModelScope.launch(Dispatchers.IO) {
             val updatedTask = task.copy(currentList = TaskList.TODAY)
-            repository.insertTask(updatedTask) // Room updates existing rows if IDs match
+            repository.insertTask(updatedTask)
         }
     }
 
-    /**
-     * Moves a task explicitly to the "For Later" tab list.
-     */
     fun moveTaskToLater(task: Task) {
         viewModelScope.launch(Dispatchers.IO) {
             val updatedTask = task.copy(currentList = TaskList.LATER)
@@ -175,22 +213,26 @@ class HomeViewModel(
     }
 
     /**
-     * Sweeps through all recurring tasks in the database and evaluates if they need
-     * to be moved to Today or have new instances spawned based on user behavior choices.
+     * Evaluates recurring tasks and advances them based on unit rules (Day, Week, Month, Year).
      */
     fun runMissedBehaviorEngine() {
         viewModelScope.launch(Dispatchers.IO) {
             val allTasks = repository.getAllTasksRaw()
-            val currentTime = System.currentTimeMillis()
+            val currentTimeMillis = System.currentTimeMillis()
+            val zoneId = ZoneId.systemDefault()
+            val now = ZonedDateTime.ofInstant(Instant.ofEpochMilli(currentTimeMillis), zoneId)
 
             allTasks.forEach { task ->
                 if (task.isRecurring) {
-                    val intervalMillis = task.intervalDays * 24 * 60 * 60 * 1000L
-                    val timePassed = currentTime - task.lastGeneratedTimestamp
+                    val lastGen = ZonedDateTime.ofInstant(
+                        Instant.ofEpochMilli(task.lastGeneratedTimestamp),
+                        zoneId
+                    )
 
-                    if (timePassed >= intervalMillis) {
-                        val intervalsPassed = timePassed / intervalMillis
-                        val nextExpectedTimestamp = task.lastGeneratedTimestamp + (intervalsPassed * intervalMillis)
+                    val nextExpected = calculateNextDueDate(task, lastGen)
+
+                    if (!now.isBefore(nextExpected)) {
+                        val nextExpectedTimestamp = nextExpected.toInstant().toEpochMilli()
 
                         if (task.currentList == TaskList.LATER) {
                             val updatedTask = task.copy(
@@ -203,27 +245,30 @@ class HomeViewModel(
                             if (!task.isCompleted) {
                                 when (task.recurrenceBehavior) {
                                     RecurrenceBehavior.SKIP -> {
-                                        val updatedTask = task.copy(lastGeneratedTimestamp = nextExpectedTimestamp)
+                                        val updatedTask = task.copy(
+                                            lastGeneratedTimestamp = nextExpectedTimestamp
+                                        )
                                         repository.insertTask(updatedTask)
                                     }
                                     RecurrenceBehavior.REPLACE -> {
-                                        // Uses the local repository function we exposed earlier
                                         repository.deleteTask(task)
                                         val freshTask = task.copy(
                                             id = 0L,
                                             isCompleted = false,
-                                            lastGeneratedTimestamp = currentTime
+                                            lastGeneratedTimestamp = currentTimeMillis
                                         )
                                         repository.insertTask(freshTask)
                                     }
                                     RecurrenceBehavior.STACK -> {
-                                        val updatedOriginal = task.copy(lastGeneratedTimestamp = nextExpectedTimestamp)
+                                        val updatedOriginal = task.copy(
+                                            lastGeneratedTimestamp = nextExpectedTimestamp
+                                        )
                                         repository.insertTask(updatedOriginal)
 
                                         val stackedTask = task.copy(
                                             id = 0L,
                                             isCompleted = false,
-                                            lastGeneratedTimestamp = currentTime
+                                            lastGeneratedTimestamp = currentTimeMillis
                                         )
                                         repository.insertTask(stackedTask)
                                     }
@@ -237,6 +282,51 @@ class HomeViewModel(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private fun calculateNextDueDate(task: Task, fromDate: ZonedDateTime): ZonedDateTime {
+        val interval = task.intervalValue.coerceAtLeast(1).toLong()
+        return when (task.recurrenceUnit) {
+            RecurrenceUnit.DAILY -> fromDate.plusDays(interval)
+
+            RecurrenceUnit.WEEKLY -> fromDate.plusWeeks(interval)
+
+            RecurrenceUnit.MONTHLY -> {
+                if (task.monthlyRuleType == MonthlyRuleType.INTERVAL) {
+                    fromDate.plusMonths(interval)
+                } else {
+                    var targetDate = fromDate.plusMonths(interval)
+                    val maxDaysInTargetMonth = targetDate.toLocalDate().lengthOfMonth()
+                    val targetDay = task.monthlyDayOfMonth.coerceIn(1, maxDaysInTargetMonth)
+                    targetDate = targetDate.withDayOfMonth(targetDay)
+
+                    if (!targetDate.isAfter(fromDate)) {
+                        targetDate = targetDate.plusMonths(interval)
+                        val daysInNext = targetDate.toLocalDate().lengthOfMonth()
+                        targetDate = targetDate.withDayOfMonth(task.monthlyDayOfMonth.coerceIn(1, daysInNext))
+                    }
+                    targetDate
+                }
+            }
+
+            RecurrenceUnit.YEARLY -> {
+                if (task.yearlyRuleType == YearlyRuleType.INTERVAL) {
+                    fromDate.plusYears(interval)
+                } else {
+                    val targetMonth = task.yearlyMonth.coerceIn(1, 12)
+                    var targetDate = fromDate.plusYears(interval).withMonth(targetMonth)
+                    val targetDay = task.yearlyDayOfMonth.coerceIn(1, targetDate.toLocalDate().lengthOfMonth())
+                    targetDate = targetDate.withDayOfMonth(targetDay)
+
+                    if (!targetDate.isAfter(fromDate)) {
+                        targetDate = targetDate.plusYears(interval)
+                        val daysInNext = targetDate.toLocalDate().lengthOfMonth()
+                        targetDate = targetDate.withDayOfMonth(task.yearlyDayOfMonth.coerceIn(1, daysInNext))
+                    }
+                    targetDate
                 }
             }
         }
