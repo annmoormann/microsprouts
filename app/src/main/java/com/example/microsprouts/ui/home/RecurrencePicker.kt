@@ -54,7 +54,7 @@ fun RecurrencePicker(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize() // Smoothly animates size expansion to avoid scroll jumps
+            .animateContentSize()
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -97,105 +97,109 @@ fun RecurrencePicker(
                     }
                 }
 
-                // Interval Input
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Every", style = MaterialTheme.typography.bodyMedium)
-                    OutlinedTextField(
-                        value = intervalValue.toString(),
-                        onValueChange = { newValue ->
-                            newValue.toIntOrNull()?.let { onIntervalValueChange(it.coerceAtLeast(1)) }
-                        },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                    Text(
-                        text = when (recurrenceUnit) {
-                            RecurrenceUnit.DAILY -> if (intervalValue > 1) "days" else "day"
-                            RecurrenceUnit.WEEKLY -> if (intervalValue > 1) "weeks" else "week"
-                            RecurrenceUnit.MONTHLY -> if (intervalValue > 1) "months" else "month"
-                            RecurrenceUnit.YEARLY -> if (intervalValue > 1) "years" else "year"
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                // Monthly Secondary Rules
+                // Monthly Rules Sub-Toggle
                 if (recurrenceUnit == RecurrenceUnit.MONTHLY) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Monthly Rule", style = MaterialTheme.typography.labelLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = monthlyRuleType == MonthlyRuleType.INTERVAL,
-                                onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.INTERVAL) },
-                                label = { Text("Every X Months") }
-                            )
-                            FilterChip(
-                                selected = monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY,
-                                onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.SPECIFIC_DAY) },
-                                label = { Text("Specific Day") }
-                            )
-                        }
-
-                        if (monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Day of month: ", style = MaterialTheme.typography.bodyMedium)
-                                OutlinedTextField(
-                                    value = monthlyDayOfMonth.toString(),
-                                    onValueChange = { newDay ->
-                                        newDay.toIntOrNull()?.let { onMonthlyDayOfMonthChange(it.coerceIn(1, 31)) }
-                                    },
-                                    singleLine = true
-                                )
-                            }
-                        }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = monthlyRuleType == MonthlyRuleType.INTERVAL,
+                            onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.INTERVAL) },
+                            label = { Text("Every X Months") }
+                        )
+                        FilterChip(
+                            selected = monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY,
+                            onClick = { onMonthlyRuleTypeChange(MonthlyRuleType.SPECIFIC_DAY) },
+                            label = { Text("Specific Day") }
+                        )
                     }
                 }
 
-                // Yearly Secondary Rules
+                // Yearly Rules Sub-Toggle
                 if (recurrenceUnit == RecurrenceUnit.YEARLY) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Yearly Rule", style = MaterialTheme.typography.labelLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = yearlyRuleType == YearlyRuleType.INTERVAL,
-                                onClick = { onYearlyRuleTypeChange(YearlyRuleType.INTERVAL) },
-                                label = { Text("Every X Years") }
-                            )
-                            FilterChip(
-                                selected = yearlyRuleType == YearlyRuleType.SPECIFIC_DATE,
-                                onClick = { onYearlyRuleTypeChange(YearlyRuleType.SPECIFIC_DATE) },
-                                label = { Text("Specific Date") }
-                            )
-                        }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = yearlyRuleType == YearlyRuleType.INTERVAL,
+                            onClick = { onYearlyRuleTypeChange(YearlyRuleType.INTERVAL) },
+                            label = { Text("Every X Years") }
+                        )
+                        FilterChip(
+                            selected = yearlyRuleType == YearlyRuleType.SPECIFIC_DATE,
+                            onClick = { onYearlyRuleTypeChange(YearlyRuleType.SPECIFIC_DATE) },
+                            label = { Text("Specific Date") }
+                        )
+                    }
+                }
 
-                        if (yearlyRuleType == YearlyRuleType.SPECIFIC_DATE) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Month:", style = MaterialTheme.typography.bodyMedium)
-                                OutlinedTextField(
-                                    value = yearlyMonth.toString(),
-                                    onValueChange = { m ->
-                                        m.toIntOrNull()?.let { onYearlyMonthChange(it.coerceIn(1, 12)) }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
-                                )
-                                Text("Day:", style = MaterialTheme.typography.bodyMedium)
-                                OutlinedTextField(
-                                    value = yearlyDayOfMonth.toString(),
-                                    onValueChange = { d ->
-                                        d.toIntOrNull()?.let { onYearlyDayOfMonthChange(it.coerceIn(1, 31)) }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
-                                )
-                            }
-                        }
+                // Interval Input (Shown for Daily, Weekly, or Interval-based Monthly/Yearly)
+                val showIntervalInput = when (recurrenceUnit) {
+                    RecurrenceUnit.DAILY, RecurrenceUnit.WEEKLY -> true
+                    RecurrenceUnit.MONTHLY -> monthlyRuleType == MonthlyRuleType.INTERVAL
+                    RecurrenceUnit.YEARLY -> yearlyRuleType == YearlyRuleType.INTERVAL
+                }
+
+                if (showIntervalInput) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Every", style = MaterialTheme.typography.bodyMedium)
+                        OutlinedTextField(
+                            value = intervalValue.toString(),
+                            onValueChange = { newValue ->
+                                newValue.toIntOrNull()?.let { onIntervalValueChange(it.coerceAtLeast(1)) }
+                            },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Text(
+                            text = when (recurrenceUnit) {
+                                RecurrenceUnit.DAILY -> if (intervalValue > 1) "days" else "day"
+                                RecurrenceUnit.WEEKLY -> if (intervalValue > 1) "weeks" else "week"
+                                RecurrenceUnit.MONTHLY -> if (intervalValue > 1) "months" else "month"
+                                RecurrenceUnit.YEARLY -> if (intervalValue > 1) "years" else "year"
+                            },
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                // Specific Day Inputs
+                if (recurrenceUnit == RecurrenceUnit.MONTHLY && monthlyRuleType == MonthlyRuleType.SPECIFIC_DAY) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Day of month: ", style = MaterialTheme.typography.bodyMedium)
+                        OutlinedTextField(
+                            value = monthlyDayOfMonth.toString(),
+                            onValueChange = { newDay ->
+                                newDay.toIntOrNull()?.let { onMonthlyDayOfMonthChange(it.coerceIn(1, 31)) }
+                            },
+                            singleLine = true
+                        )
+                    }
+                }
+
+                // Specific Date Inputs
+                if (recurrenceUnit == RecurrenceUnit.YEARLY && yearlyRuleType == YearlyRuleType.SPECIFIC_DATE) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Month:", style = MaterialTheme.typography.bodyMedium)
+                        OutlinedTextField(
+                            value = yearlyMonth.toString(),
+                            onValueChange = { m ->
+                                m.toIntOrNull()?.let { onYearlyMonthChange(it.coerceIn(1, 12)) }
+                            },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Text("Day:", style = MaterialTheme.typography.bodyMedium)
+                        OutlinedTextField(
+                            value = yearlyDayOfMonth.toString(),
+                            onValueChange = { d ->
+                                d.toIntOrNull()?.let { onYearlyDayOfMonthChange(it.coerceIn(1, 31)) }
+                            },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
                     }
                 }
 
