@@ -2,17 +2,14 @@ package com.example.microsprouts.ui.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,10 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -50,22 +43,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.microsprouts.R
-import com.example.microsprouts.data.entity.Category
-import com.example.microsprouts.data.entity.MonthlyRuleType
-import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.Task
-import com.example.microsprouts.data.entity.YearlyRuleType
-import com.example.microsprouts.ui.components.CategoryChip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -313,4 +298,43 @@ fun HomeScreen(
         val currentTask = editingTask!!
         EditTaskSheet(
             task = currentTask,
-            onDismiss = { editingTask =
+            onDismiss = { editingTask = null },
+            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId,
+                          isRecurring, recurrenceUnit, intervalValue, monthlyRuleType,
+                          monthlyDayOfMonth, yearlyRuleType, yearlyMonth, yearlyDayOfMonth,
+                          recurrenceBehavior ->
+                viewModel.updateTask(
+                    currentTask.copy(
+                        title = title,
+                        primaryCategoryId = primaryCategoryId,
+                        parentId = parentId,
+                        isRecurring = isRecurring,
+                        recurrenceUnit = recurrenceUnit,
+                        intervalValue = intervalValue,
+                        monthlyRuleType = monthlyRuleType,
+                        monthlyDayOfMonth = monthlyDayOfMonth,
+                        yearlyRuleType = yearlyRuleType,
+                        yearlyMonth = yearlyMonth,
+                        yearlyDayOfMonth = yearlyDayOfMonth,
+                        recurrenceBehavior = recurrenceBehavior
+                    ),
+                    secondaryCategoryIds
+                )
+                editingTask = null
+            },
+            onDelete = {
+                viewModel.deleteTask(currentTask.id)
+                editingTask = null
+            },
+            availableParentTasks = todayTasks + laterTasks,
+            allCategories = allCategories,
+            currentSecondaryCategoryIds = taskSecondaryCategories[currentTask.id]?.map { it.id } ?: emptyList(),
+            parentSecondaryCategoriesLookup = { parentId ->
+                taskSecondaryCategories[parentId] ?: emptyList()
+            },
+            onCreateCategory = { name, colorHex ->
+                viewModel.insertCategory(name, colorHex)
+            }
+        )
+    }
+}
