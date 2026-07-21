@@ -106,11 +106,13 @@ fun ParentTaskCard(
                             modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
                         ) {
                             primaryCategory?.let { cat ->
-                                val catIndex = allCategories.indexOf(cat).coerceAtLeast(0)
+                                val rawIndex = allCategories.indexOfFirst { it.id == cat.id }
+                                val catIndex = if (rawIndex >= 0) rawIndex else 0
                                 CategoryChip(category = cat, categoryIndex = catIndex)
                             }
                             secondaryCategories.forEach { cat ->
-                                val catIndex = allCategories.indexOf(cat).coerceAtLeast(0)
+                                val rawIndex = allCategories.indexOfFirst { it.id == cat.id }
+                                val catIndex = if (rawIndex >= 0) rawIndex else 0
                                 CategoryChip(category = cat, categoryIndex = catIndex)
                             }
                         }

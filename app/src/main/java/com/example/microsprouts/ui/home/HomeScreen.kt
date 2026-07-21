@@ -187,10 +187,10 @@ fun HomeScreen(
                 ) {
                     groupedTasks.forEach { (primaryCatId, categoryTasks) ->
                         val category = allCategories.find { it.id == primaryCatId }
-                        val rawIndex = if (category != null) allCategories.indexOf(category) else 0
-                        val catIndex = rawIndex.coerceAtLeast(0)
+                        val rawIndex = if (category != null) allCategories.indexOfFirst { it.id == category.id } else -1
+                        val catIndex = if (rawIndex >= 0) rawIndex else 0
 
-                        item(key = "cat_group_${primaryCatId ?: "uncategorized"}") {
+                        item(key = "cat_group_${selectedTab}_${primaryCatId ?: "uncategorized"}") {
                             CategoryCard(
                                 category = category,
                                 categoryIndex = catIndex,

@@ -104,6 +104,7 @@ fun CategoryCard(
                     tasks.forEach { parentTask ->
                         key(parentTask.id) {
                             val dismissState = rememberSwipeToDismissBoxState(
+                                initialValue = SwipeToDismissBoxValue.Settled,
                                 confirmValueChange = { dismissValue ->
                                     // 1. Pure validation predicate only: allow swipe direction based on tab
                                     when (dismissValue) {
@@ -120,11 +121,13 @@ fun CategoryCard(
                                     SwipeToDismissBoxValue.StartToEnd -> {
                                         if (selectedTab == 0) {
                                             onMoveToLater(parentTask)
+                                            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
                                         }
                                     }
                                     SwipeToDismissBoxValue.EndToStart -> {
                                         if (selectedTab == 1) {
                                             onMoveToToday(parentTask)
+                                            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
                                         }
                                     }
                                     else -> {}
