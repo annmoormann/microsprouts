@@ -1,7 +1,6 @@
 package com.example.microsprouts.ui.home
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,9 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -25,8 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -34,7 +29,6 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -69,6 +63,7 @@ fun HomeScreen(
     var editingTask by remember { mutableStateOf<Task?>(null) }
 
     val activeTasks = if (selectedTab == 0) todayTasks else laterTasks
+    val groupedTasks = activeTasks.groupBy { it.primaryCategoryId }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -182,76 +177,26 @@ fun HomeScreen(
                         .fillMaxSize()
                         .weight(1f)
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(activeTasks, key = { it.id }) { parentTask ->
-                        val taskSubtasks = subtasks[parentTask.id] ?: emptyList()
+                    groupedTasks.forEach { (primaryCatId, categoryTasks) ->
+                        val category = allCategories.find { it.id == primaryCatId }
+                        val rawIndex = if (category != null) allCategories.indexOf(category) else 0
+                        val catIndex = rawIndex.coerceAtLeast(0)
 
-                        val dismissState = rememberSwipeToDismissBoxState(
-                            confirmValueChange = { dismissValue ->
-                                when (dismissValue) {
-                                    SwipeToDismissBoxValue.StartToEnd -> {
-                                        if (selectedTab == 0) {
-                                            viewModel.moveTaskToLater(parentTask)
-                                            true
-                                        } else {
-                                            false
-                                        }
-                                    }
-                                    SwipeToDismissBoxValue.EndToStart -> {
-                                        if (selectedTab == 1) {
-                                            viewModel.moveTaskToToday(parentTask)
-                                            true
-                                        } else {
-                                            false
-                                        }
-                                    }
-                                    else -> false
-                                }
-                            },
-                        )
-
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            enableDismissFromStartToEnd = (selectedTab == 0),
-                            enableDismissFromEndToStart = (selectedTab == 1),
-                            backgroundContent = {
-                                val color = when (dismissState.dismissDirection) {
-                                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFFE6EFE9)
-                                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFEBF3FC)
-                                    else -> Color.Transparent
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(color, shape = RoundedCornerShape(16.dp))
-                                        .padding(horizontal = 24.dp),
-                                    contentAlignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
-                                        Alignment.CenterStart
-                                    } else {
-                                        Alignment.CenterEnd
-                                    },
-                                ) {
-                                    Text(
-                                        text = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
-                                            "Move to Later ➔"
-                                        } else {
-                                            "⇠ Move to Today"
-                                        },
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 14.sp,
-                                    )
-                                }
-                            },
-                        ) {
-                            ParentTaskCard(
-                                task = parentTask,
-                                subtasks = taskSubtasks,
+                        item(key = "cat_group_${primaryCatId ?: "uncategorized"}") {
+                            CategoryCard(
+                                category = category,
+                                categoryIndex = catIndex,
+                                tasks = categoryTasks,
+                                selectedTab = selectedTab,
+                                subtasksLookup = { parentId -> subtasks[parentId] ?: emptyList() },
+                                secondaryCategoriesLookup = { taskId -> taskSecondaryCategories[taskId] ?: emptyList() },
                                 allCategories = allCategories,
-                                secondaryCategories = taskSecondaryCategories[parentTask.id] ?: emptyList(),
                                 onToggle = { viewModel.toggleTaskCompletion(it) },
-                                onCardClick = { editingTask = parentTask },
+                                onMoveToLater = { viewModel.moveTaskToLater(it) },
+                                onMoveToToday = { viewModel.moveTaskToToday(it) },
+                                onCardClick = { editingTask = it },
                                 onSubtaskClick = { editingTask = it },
                             )
                         }

@@ -30,6 +30,8 @@ object BrandPalette {
      * Cycles through the 5 brand colors in round-robin order based on index/count.
      */
     fun getColorForIndex(index: Int): Color {
-        return PALETTE[index % PALETTE.size]
-    }
-}
+        if (PALETTE.isEmpty()) return SagePrimary
+        // Math.floorMod handles negative indices safely (e.g. floorMod(-1, 5) -> 4)
+        val safeIndex = Math.floorMod(index, PALETTE.size)
+        return PALETTE[safeIndex]
+    }}
