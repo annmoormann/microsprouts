@@ -95,22 +95,21 @@ fun AddTaskSheet(
     var yearlyDayOfMonth by remember { mutableIntStateOf(1) }
     var recurrenceBehavior by remember { mutableStateOf(RecurrenceBehavior.SKIP) }
 
-    // 1. Filtered Categories
+    // 1. Filtered Categories derived from parent inheritance
     val filteredCategories = remember(selectedParent, allCategories) {
-        if (selectedParent == null) {
+        val parent = selectedParent
+        if (parent == null) {
             allCategories
         } else {
-            val parentPrimaryId = selectedParent?.primaryCategoryId
-            val parentSecondaryIds = selectedParent?.id?.let {
-                parentSecondaryCategoriesLookup(it).map { cat -> cat.id }
-            } ?: emptyList()
+            val parentPrimaryId = parent.primaryCategoryId
+            val parentSecondaryIds = parentSecondaryCategoriesLookup(parent.id).map { cat -> cat.id }
             val allowedIds = (if (parentPrimaryId != null) listOf(parentPrimaryId) else emptyList()) + parentSecondaryIds
             allCategories.filter { it.id in allowedIds }
         }
     }
 
-    // 2. Filtered Parent Tasks
-    val filteredParentTasks = remember(primaryCategoryId, secondaryCategoryIds.toList(), availableParentTasks) {
+    // 2. Filtered Parent Tasks matching selected categories
+    val filteredParentTasks = remember(primaryCategoryId, secondaryCategoryIds.size, secondaryCategoryIds.firstOrNull(), availableParentTasks) {
         availableParentTasks.filter { parent ->
             val parentPrimaryId = parent.primaryCategoryId
             val parentSecondaryIds = parentSecondaryCategoriesLookup(parent.id).map { it.id }
@@ -123,12 +122,15 @@ fun AddTaskSheet(
         }
     }
 
-    LaunchedEffect(filteredCategories) {
+    // Cleanup selections that become invalid when selectedParent changes
+    LaunchedEffect(selectedParent) {
         if (primaryCategoryId != null && filteredCategories.none { it.id == primaryCategoryId }) {
             primaryCategoryId = null
         }
         val toRemove = secondaryCategoryIds.filter { id -> filteredCategories.none { it.id == id } }
-        secondaryCategoryIds.removeAll(toRemove)
+        if (toRemove.isNotEmpty()) {
+            secondaryCategoryIds.removeAll(toRemove)
+        }
     }
 
     ModalBottomSheet(
@@ -389,10 +391,10 @@ fun AddTaskSheet(
         }
     }
 
-    // Inline category creation dialog
+    // Inline category creation dialog (Default Sage Green color)
     if (showCreateCategoryDialog) {
         var newCategoryName by remember { mutableStateOf("") }
-        var newCategoryColorHex by remember { mutableStateOf("#6C8E75") }
+        val defaultBrandColorHex = "#6C8E75"
 
         AlertDialog(
             onDismissRequest = { showCreateCategoryDialog = false },
@@ -414,20 +416,13 @@ fun AddTaskSheet(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
-                        value = newCategoryColorHex,
-                        onValueChange = { newCategoryColorHex = it },
-                        label = { Text("Color Hex Code") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         if (newCategoryName.isNotBlank()) {
-                            onCreateCategory(newCategoryName.trim(), newCategoryColorHex.trim())
+                            onCreateCategory(newCategoryName.trim(), defaultBrandColorHex)
                             showCreateCategoryDialog = false
                         }
                     },

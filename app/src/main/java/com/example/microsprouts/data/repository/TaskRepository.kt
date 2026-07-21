@@ -2,10 +2,10 @@ package com.example.microsprouts.data.repository
 
 import com.example.microsprouts.data.dao.TaskDao
 import com.example.microsprouts.data.entity.Category
+import com.example.microsprouts.data.entity.RecurrenceBehavior
 import com.example.microsprouts.data.entity.Task
 import com.example.microsprouts.data.entity.TaskCategoryCrossRef
 import com.example.microsprouts.data.entity.TaskList
-import com.example.microsprouts.data.entity.RecurrenceBehavior
 import kotlinx.coroutines.flow.Flow
 
 class TaskRepository(
@@ -13,8 +13,8 @@ class TaskRepository(
 ) {
 
     val allTasks: Flow<List<Task>> = taskDao.getAllTasksFlow()
+    val allCategories: Flow<List<Category>> = taskDao.getAllCategoriesFlow()
 
-    // Helper for the background rollover engine to fetch all tasks synchronously
     suspend fun getAllTasksRaw(): List<Task> = taskDao.getAllTasksRaw()
 
     suspend fun insertTask(task: Task) = taskDao.insertTask(task)
@@ -40,13 +40,11 @@ class TaskRepository(
 
     suspend fun seedSampleData() {
         clearAllTasks()
-        // Seed initial categories
         insertCategory(Category(id = 1L, name = "Watering", colorHex = "#4A90E2"))
         insertCategory(Category(id = 2L, name = "Harvesting", colorHex = "#E2844A"))
         insertCategory(Category(id = 3L, name = "Packaging", colorHex = "#50E3C2"))
         insertCategory(Category(id = 4L, name = "Cleaning", colorHex = "#B8E986"))
 
-        // Morning Inspection: Set as Recurring, Daily (1 day), default to Today list
         insertTask(
             Task(
                 id = 10L,
@@ -54,16 +52,14 @@ class TaskRepository(
                 isCompleted = false,
                 currentList = TaskList.TODAY,
                 isRecurring = true,
-                intervalDays = 1,
+                intervalValue = 1,
                 recurrenceBehavior = RecurrenceBehavior.SKIP,
                 parentId = null,
-                primaryCategoryId = 1L // Watering
+                primaryCategoryId = 1L
             ),
         )
-        // Seed secondary categories for parent task
-        insertSecondaryCategory(TaskCategoryCrossRef(taskId = 10L, categoryId = 4L)) // Cleaning
+        insertSecondaryCategory(TaskCategoryCrossRef(taskId = 10L, categoryId = 4L))
 
-        // Subtask 11
         insertTask(
             Task(
                 id = 11L,
@@ -71,14 +67,13 @@ class TaskRepository(
                 isCompleted = false,
                 currentList = TaskList.TODAY,
                 isRecurring = false,
-                intervalDays = 0,
+                intervalValue = 0,
                 recurrenceBehavior = RecurrenceBehavior.SKIP,
                 parentId = 10L,
                 primaryCategoryId = 1L,
             ),
         )
 
-        // Subtask 12
         insertTask(
             Task(
                 id = 12L,
@@ -86,14 +81,13 @@ class TaskRepository(
                 isCompleted = true,
                 currentList = TaskList.TODAY,
                 isRecurring = false,
-                intervalDays = 0,
+                intervalValue = 0,
                 recurrenceBehavior = RecurrenceBehavior.SKIP,
                 parentId = 10L,
                 primaryCategoryId = 4L,
             ),
         )
 
-        // Packaging Task
         insertTask(
             Task(
                 id = 20L,
@@ -101,14 +95,13 @@ class TaskRepository(
                 isCompleted = false,
                 currentList = TaskList.TODAY,
                 isRecurring = false,
-                intervalDays = 0,
+                intervalValue = 0,
                 recurrenceBehavior = RecurrenceBehavior.SKIP,
                 parentId = null,
-                primaryCategoryId = 3L, // Packaging
+                primaryCategoryId = 3L,
             ),
         )
 
-        // Sanitization Bay: Set as Recurring, Weekly (7 days), default to Later list
         insertTask(
             Task(
                 id = 30L,
@@ -116,10 +109,10 @@ class TaskRepository(
                 isCompleted = false,
                 currentList = TaskList.LATER,
                 isRecurring = true,
-                intervalDays = 7,
+                intervalValue = 7,
                 recurrenceBehavior = RecurrenceBehavior.SKIP,
                 parentId = null,
-                primaryCategoryId = 4L // Cleaning
+                primaryCategoryId = 4L
             ),
         )
     }
