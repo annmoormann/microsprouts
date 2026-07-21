@@ -1,0 +1,32 @@
+# Terms of Service for MicroSprouts
+
+**Last Updated:** July 21, 2026
+
+Welcome to MicroSprouts! These Terms of Service ("Terms") govern your use of the MicroSprouts mobile application ("App") operated by MicroSprouts ("we", "us", or "our").
+
+By downloading, installing, or using the App, you agree to be bound by these Terms. If you do not agree to these Terms, do not use the App.
+
+## 1. Use of the App
+* **Eligibility:** You must be at least 13 years old to use the App.
+* **License:** We grant you a limited, non-exclusive, non-transferable, revocable license to use MicroSprouts for your personal, non-commercial use on compatible devices.
+* **Prohibited Conduct:** You agree not to misuse the App, attempt to extract its source code, reverse-engineer it, or use it for any unlawful purposes.
+
+## 2. User Data & Storage
+* MicroSprouts stores your tasks, subtasks, and category data locally on your device or via your local application storage.
+* You are solely responsible for maintaining the security of your device and any data stored within the App.
+
+## 3. Intellectual Property
+* All intellectual property rights in the App, including its design, source code, logos, graphics, and user interface elements, are and shall remain the exclusive property of MicroSprouts.
+
+## 4. Updates and Changes
+* We reserve the right to modify, suspend, or discontinue the App (or any part thereof) at any time with or without notice.
+* We may update these Terms from time to time. Continued use of the App after changes constitute your acceptance of the new Terms.
+
+## 5. Disclaimer of Warranties
+The App is provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind, whether express or implied. We do not guarantee that the App will be uninterrupted, error-free, or entirely secure.
+
+## 6. Limitation of Liability
+To the maximum extent permitted by applicable law, MicroSprouts shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of data or profits arising out of your use or inability to use the App.
+
+## 7. Contact Us
+If you have any questions or concerns about these Terms, please reach out to our support team through our official communication channels or repository page.
