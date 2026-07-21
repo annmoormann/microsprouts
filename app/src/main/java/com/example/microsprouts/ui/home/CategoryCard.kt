@@ -62,7 +62,6 @@ fun CategoryCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            // Draw left color bar directly without IntrinsicSize measurement pass
             .drawWithContent {
                 drawContent()
                 drawRect(
@@ -107,16 +106,19 @@ fun CategoryCard(
                             }
                         )
 
-                        LaunchedEffect(dismissState.currentValue) {
-                            when (dismissState.currentValue) {
+                        // Trigger state change immediately when target value changes
+                        LaunchedEffect(dismissState.targetValue) {
+                            when (dismissState.targetValue) {
                                 SwipeToDismissBoxValue.StartToEnd -> {
                                     if (selectedTab == 0) {
                                         onMoveToLater(parentTask)
+                                        dismissState.snapTo(SwipeToDismissBoxValue.Settled)
                                     }
                                 }
                                 SwipeToDismissBoxValue.EndToStart -> {
                                     if (selectedTab == 1) {
                                         onMoveToToday(parentTask)
+                                        dismissState.snapTo(SwipeToDismissBoxValue.Settled)
                                     }
                                 }
                                 else -> {}

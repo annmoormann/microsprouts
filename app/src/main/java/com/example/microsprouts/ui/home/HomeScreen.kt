@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -241,47 +242,4 @@ fun HomeScreen(
                 viewModel.insertCategory(name, colorHex)
             },
         )
-    }
-
-    if (editingTask != null) {
-        val currentTask = editingTask!!
-        EditTaskSheet(
-            task = currentTask,
-            onDismiss = { editingTask = null },
-            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId,
-                          isRecurring, recurrenceUnit, intervalValue, monthlyRuleType,
-                          monthlyDayOfMonth, yearlyRuleType, yearlyMonth, yearlyDayOfMonth,
-                          recurrenceBehavior ->
-                viewModel.updateTask(
-                    currentTask.copy(
-                        title = title,
-                        primaryCategoryId = primaryCategoryId,
-                        parentId = parentId,
-                        isRecurring = isRecurring,
-                        recurrenceUnit = recurrenceUnit,
-                        intervalValue = intervalValue,
-                        monthlyRuleType = monthlyRuleType,
-                        monthlyDayOfMonth = monthlyDayOfMonth,
-                        yearlyRuleType = yearlyRuleType,
-                        yearlyMonth = yearlyMonth,
-                        yearlyDayOfMonth = yearlyDayOfMonth,
-                        recurrenceBehavior = recurrenceBehavior
-                    ),
-                    secondaryCategoryIds
-                )
-                editingTask = null
-            },
-            onDelete = {
-                viewModel.deleteTask(currentTask.id)
-                editingTask = null
-            },
-            availableParentTasks = todayTasks + laterTasks,
-            allCategories = allCategories,
-            currentSecondaryCategoryIds = taskSecondaryCategories[currentTask.id]?.map { it.id } ?: emptyList(),
-            parentSecondaryCategoriesLookup = secondaryCategoriesLookup,
-            onCreateCategory = { name, colorHex ->
-                viewModel.insertCategory(name, colorHex)
-            }
-        )
-    }
-}
+    }}

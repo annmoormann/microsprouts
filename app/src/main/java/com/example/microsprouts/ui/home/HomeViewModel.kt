@@ -14,6 +14,7 @@ import com.example.microsprouts.data.repository.TaskRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
@@ -27,22 +28,29 @@ class HomeViewModel(
     private val repository: TaskRepository,
 ) : ViewModel() {
 
+    // 1. Reactive view over tasks tagged for TODAY (parent tasks only)
     val todayTasks: StateFlow<List<Task>> = repository.allTasks
-        .map { tasks -> tasks.filter { it.currentList == TaskList.TODAY } }
+        .map { tasks ->
+            tasks.filter { it.parentId == null && it.currentList == TaskList.TODAY }
+        }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = WhileSubscribed(5000),
             initialValue = emptyList(),
         )
 
+    // 2. Reactive view over tasks tagged for LATER (parent tasks only)
     val laterTasks: StateFlow<List<Task>> = repository.allTasks
-        .map { tasks -> tasks.filter { it.currentList == TaskList.LATER } }
+        .map { tasks ->
+            tasks.filter { it.parentId == null && it.currentList == TaskList.LATER }
+        }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = WhileSubscribed(5000),
             initialValue = emptyList(),
         )
 
+    // 3. Map of parent task IDs to their subtasks
     val subtasks: StateFlow<Map<Long, List<Task>>> = repository.allTasks
         .map { tasks ->
             tasks.asSequence()
@@ -51,7 +59,7 @@ class HomeViewModel(
         }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = WhileSubscribed(5000),
             initialValue = emptyMap(),
         )
 
@@ -189,6 +197,11 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val updatedTask = task.copy(currentList = TaskList.TODAY)
             repository.insertTask(updatedTask)
+
+            val childSubtasks = subtasks.value[task.id] ?: emptyList()
+            childSubtasks.forEach { subtask ->
+                repository.insertTask(subtask.copy(currentList = TaskList.TODAY))
+            }
         }
     }
 
@@ -196,6 +209,11 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val updatedTask = task.copy(currentList = TaskList.LATER)
             repository.insertTask(updatedTask)
+
+            val childSubtasks = subtasks.value[task.id] ?: emptyList()
+            childSubtasks.forEach { subtask ->
+                repository.insertTask(subtask.copy(currentList = TaskList.LATER))
+            }
         }
     }
 
@@ -213,9 +231,6 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Evaluates recurring tasks and advances them cleanly in memory before writing to DB.
-     */
     fun runMissedBehaviorEngine() {
         viewModelScope.launch(Dispatchers.IO) {
             val allTasks = repository.getAllTasksRaw()
@@ -233,7 +248,6 @@ class HomeViewModel(
 
                     var nextExpected = calculateNextDueDate(task, lastGen)
 
-                    // Fast-forward in memory if lastGeneratedTimestamp is far in the past (prevents DB loop cascade)
                     if (!now.isBefore(nextExpected)) {
                         while (!now.isBefore(calculateNextDueDate(task, nextExpected))) {
                             nextExpected = calculateNextDueDate(task, nextExpected)
@@ -298,9 +312,7 @@ class HomeViewModel(
         val interval = task.intervalValue.coerceAtLeast(1).toLong()
         return when (task.recurrenceUnit) {
             RecurrenceUnit.DAILY -> fromDate.plusDays(interval)
-
             RecurrenceUnit.WEEKLY -> fromDate.plusWeeks(interval)
-
             RecurrenceUnit.MONTHLY -> {
                 if (task.monthlyRuleType == MonthlyRuleType.INTERVAL) {
                     fromDate.plusMonths(interval)
@@ -318,7 +330,6 @@ class HomeViewModel(
                     targetDate
                 }
             }
-
             RecurrenceUnit.YEARLY -> {
                 if (task.yearlyRuleType == YearlyRuleType.INTERVAL) {
                     fromDate.plusYears(interval)
