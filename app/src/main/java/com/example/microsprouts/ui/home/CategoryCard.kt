@@ -53,7 +53,6 @@ fun CategoryCard(
     onSubtaskClick: (Task) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Left edge bar color (WarmSand hides bar for Uncategorized)
     val barColor: Color = if (category != null) {
         BrandPalette.getColorForIndex(categoryIndex)
     } else {
@@ -91,7 +90,6 @@ fun CategoryCard(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // Category Header Title
                 Text(
                     text = categoryTitle,
                     fontSize = 14.sp,
@@ -100,7 +98,6 @@ fun CategoryCard(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                // List of parent tasks inside this category
                 Column(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -108,7 +105,7 @@ fun CategoryCard(
                         key(parentTask.id) {
                             val dismissState = rememberSwipeToDismissBoxState(
                                 confirmValueChange = { dismissValue ->
-                                    // Validation only: return true if direction matches active tab
+                                    // 1. Pure validation predicate only: allow swipe direction based on tab
                                     when (dismissValue) {
                                         SwipeToDismissBoxValue.StartToEnd -> selectedTab == 0
                                         SwipeToDismissBoxValue.EndToStart -> selectedTab == 1
@@ -117,7 +114,7 @@ fun CategoryCard(
                                 }
                             )
 
-                            // Handle state mutation safely outside the touch gesture pass
+                            // 2. Safely trigger state changes via LaunchedEffect after the gesture settles
                             LaunchedEffect(dismissState.currentValue) {
                                 when (dismissState.currentValue) {
                                     SwipeToDismissBoxValue.StartToEnd -> {

@@ -12,10 +12,10 @@ import com.example.microsprouts.data.entity.TaskList
 import com.example.microsprouts.data.entity.YearlyRuleType
 import com.example.microsprouts.data.repository.TaskRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -55,33 +55,33 @@ class HomeViewModel(
             initialValue = emptyMap(),
         )
 
-    val allCategories: StateFlow<List<Category>> = flow {
-        while (true) {
-            emit(repository.getAllCategories())
-            delay(3000)
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList(),
-    )
+    private val _allCategories = MutableStateFlow<List<Category>>(emptyList())
+    val allCategories: StateFlow<List<Category>> = _allCategories.asStateFlow()
 
-    val taskSecondaryCategories: StateFlow<Map<Long, List<Category>>> = repository.allTasks
-        .map { tasks ->
-            val map = mutableMapOf<Long, List<Category>>()
-            tasks.forEach { task ->
-                map[task.id] = repository.getSecondaryCategoriesForTask(task.id)
-            }
-            map
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyMap(),
-        )
+    private val _taskSecondaryCategories = MutableStateFlow<Map<Long, List<Category>>>(emptyMap())
+    val taskSecondaryCategories: StateFlow<Map<Long, List<Category>>> = _taskSecondaryCategories.asStateFlow()
 
     init {
+        refreshCategories()
         runMissedBehaviorEngine()
+        observeSecondaryCategories()
+    }
+
+    private fun refreshCategories() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _allCategories.value = repository.getAllCategories()
+        }
+    }
+
+    private fun observeSecondaryCategories() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.allTasks.collect { tasks ->
+                val categoryMap = tasks.associate { task ->
+                    task.id to repository.getSecondaryCategoriesForTask(task.id)
+                }
+                _taskSecondaryCategories.value = categoryMap
+            }
+        }
     }
 
     fun insertTask(task: Task) {
@@ -93,10 +93,10 @@ class HomeViewModel(
     fun insertCategory(name: String, colorHex: String) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.insertCategory(Category(name = name, colorHex = colorHex))
+            refreshCategories()
         }
     }
 
-    // Standard 4-parameter insertion (for simple task creation)
     fun insertTask(
         title: String,
         primaryCategoryId: Long?,
@@ -119,7 +119,6 @@ class HomeViewModel(
         )
     }
 
-    // Expanded 12-parameter insertion with full recurrence configuration
     fun insertTask(
         title: String,
         primaryCategoryId: Long?,
@@ -203,17 +202,19 @@ class HomeViewModel(
     fun seedSampleData() {
         viewModelScope.launch(Dispatchers.IO) {
             repository.seedSampleData()
+            refreshCategories()
         }
     }
 
     fun clearAllTasks() {
         viewModelScope.launch(Dispatchers.IO) {
             repository.clearAllTasks()
+            refreshCategories()
         }
     }
 
     /**
-     * Evaluates recurring tasks and advances them based on unit rules (Day, Week, Month, Year).
+     * Evaluates recurring tasks and advances them cleanly in memory before writing to DB.
      */
     fun runMissedBehaviorEngine() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -224,14 +225,20 @@ class HomeViewModel(
 
             allTasks.forEach { task ->
                 if (task.isRecurring) {
-                    val lastGen = ZonedDateTime.ofInstant(
-                        Instant.ofEpochMilli(task.lastGeneratedTimestamp),
+                    val baseGenTimestamp = if (task.lastGeneratedTimestamp <= 0L) currentTimeMillis else task.lastGeneratedTimestamp
+                    var lastGen = ZonedDateTime.ofInstant(
+                        Instant.ofEpochMilli(baseGenTimestamp),
                         zoneId
                     )
 
-                    val nextExpected = calculateNextDueDate(task, lastGen)
+                    var nextExpected = calculateNextDueDate(task, lastGen)
 
+                    // Fast-forward in memory if lastGeneratedTimestamp is far in the past (prevents DB loop cascade)
                     if (!now.isBefore(nextExpected)) {
+                        while (!now.isBefore(calculateNextDueDate(task, nextExpected))) {
+                            nextExpected = calculateNextDueDate(task, nextExpected)
+                        }
+
                         val nextExpectedTimestamp = nextExpected.toInstant().toEpochMilli()
 
                         if (task.currentList == TaskList.LATER) {

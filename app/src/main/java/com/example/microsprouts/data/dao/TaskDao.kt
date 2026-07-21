@@ -1,6 +1,7 @@
 package com.example.microsprouts.data.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -8,7 +9,6 @@ import com.example.microsprouts.data.entity.Category
 import com.example.microsprouts.data.entity.Task
 import com.example.microsprouts.data.entity.TaskCategoryCrossRef
 import kotlinx.coroutines.flow.Flow
-import androidx.room.Delete
 
 @Dao
 interface TaskDao {
@@ -33,6 +33,9 @@ interface TaskDao {
 
     @Query("SELECT * FROM categories")
     suspend fun getAllCategories(): List<Category>
+
+    @Query("SELECT * FROM categories")
+    fun getAllCategoriesFlow(): Flow<List<Category>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSecondaryCategory(crossRef: TaskCategoryCrossRef)

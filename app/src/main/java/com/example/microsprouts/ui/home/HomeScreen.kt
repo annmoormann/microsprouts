@@ -52,7 +52,8 @@ fun HomeScreen(
     viewModel: HomeViewModel,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Today", "Later")
+    val tabs = remember { listOf("Today", "Later") }
+
     val todayTasks by viewModel.todayTasks.collectAsStateWithLifecycle()
     val laterTasks by viewModel.laterTasks.collectAsStateWithLifecycle()
     val subtasks by viewModel.subtasks.collectAsStateWithLifecycle()
@@ -62,8 +63,19 @@ fun HomeScreen(
     var showAddTaskSheet by remember { mutableStateOf(false) }
     var editingTask by remember { mutableStateOf<Task?>(null) }
 
-    val activeTasks = if (selectedTab == 0) todayTasks else laterTasks
-    val groupedTasks = activeTasks.groupBy { it.primaryCategoryId }
+    val activeTasks = remember(selectedTab, todayTasks, laterTasks) {
+        if (selectedTab == 0) todayTasks else laterTasks
+    }
+    val groupedTasks = remember(activeTasks) {
+        activeTasks.groupBy { it.primaryCategoryId }
+    }
+
+    val subtasksLookup = remember(subtasks) {
+        { parentId: Long -> subtasks[parentId] ?: emptyList() }
+    }
+    val secondaryCategoriesLookup = remember(taskSecondaryCategories) {
+        { taskId: Long -> taskSecondaryCategories[taskId] ?: emptyList() }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -74,9 +86,7 @@ fun HomeScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
                             painter = painterResource(id = R.drawable.app_logo),
                             contentDescription = "MicroSprouts Logo",
@@ -92,18 +102,14 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { viewModel.seedSampleData() },
-                    ) {
+                    IconButton(onClick = { viewModel.seedSampleData() }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Seed Sample Data",
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
-                    IconButton(
-                        onClick = { viewModel.clearAllTasks() },
-                    ) {
+                    IconButton(onClick = { viewModel.clearAllTasks() }) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Clear All Tasks",
@@ -190,8 +196,8 @@ fun HomeScreen(
                                 categoryIndex = catIndex,
                                 tasks = categoryTasks,
                                 selectedTab = selectedTab,
-                                subtasksLookup = { parentId -> subtasks[parentId] ?: emptyList() },
-                                secondaryCategoriesLookup = { taskId -> taskSecondaryCategories[taskId] ?: emptyList() },
+                                subtasksLookup = subtasksLookup,
+                                secondaryCategoriesLookup = secondaryCategoriesLookup,
                                 allCategories = allCategories,
                                 onToggle = { viewModel.toggleTaskCompletion(it) },
                                 onMoveToLater = { viewModel.moveTaskToLater(it) },
@@ -230,9 +236,7 @@ fun HomeScreen(
             },
             availableParentTasks = todayTasks + laterTasks,
             allCategories = allCategories,
-            parentSecondaryCategoriesLookup = { parentId ->
-                taskSecondaryCategories[parentId] ?: emptyList()
-            },
+            parentSecondaryCategoriesLookup = secondaryCategoriesLookup,
             onCreateCategory = { name, colorHex ->
                 viewModel.insertCategory(name, colorHex)
             },
@@ -274,9 +278,7 @@ fun HomeScreen(
             availableParentTasks = todayTasks + laterTasks,
             allCategories = allCategories,
             currentSecondaryCategoryIds = taskSecondaryCategories[currentTask.id]?.map { it.id } ?: emptyList(),
-            parentSecondaryCategoriesLookup = { parentId ->
-                taskSecondaryCategories[parentId] ?: emptyList()
-            },
+            parentSecondaryCategoriesLookup = secondaryCategoriesLookup,
             onCreateCategory = { name, colorHex ->
                 viewModel.insertCategory(name, colorHex)
             }
