@@ -4,14 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -26,6 +21,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,7 +60,17 @@ fun CategoryCard(
     val categoryTitle = category?.name ?: "Uncategorized"
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // Draw left color bar directly without IntrinsicSize measurement pass
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    color = barColor,
+                    topLeft = Offset.Zero,
+                    size = Size(width = 6.dp.toPx(), height = size.height)
+                )
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -71,113 +79,94 @@ fun CategoryCard(
             defaultElevation = 2.dp,
         ),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(IntrinsicSize.Min)
+                .padding(start = 22.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
         ) {
-            // Left vertical color bar
-            Box(
-                modifier = Modifier
-                    .width(6.dp)
-                    .fillMaxHeight()
-                    .background(barColor)
+            Text(
+                text = categoryTitle,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = SlateText,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Category Content Column
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = categoryTitle,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SlateText,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    tasks.forEach { parentTask ->
-                        key(parentTask.id) {
-                            val dismissState = rememberSwipeToDismissBoxState(
-                                initialValue = SwipeToDismissBoxValue.Settled,
-                                confirmValueChange = { dismissValue ->
-                                    // 1. Pure validation predicate only: allow swipe direction based on tab
-                                    when (dismissValue) {
-                                        SwipeToDismissBoxValue.StartToEnd -> selectedTab == 0
-                                        SwipeToDismissBoxValue.EndToStart -> selectedTab == 1
-                                        else -> false
-                                    }
-                                }
-                            )
-
-                            // 2. Safely trigger state changes via LaunchedEffect after the gesture settles
-                            LaunchedEffect(dismissState.currentValue) {
-                                when (dismissState.currentValue) {
-                                    SwipeToDismissBoxValue.StartToEnd -> {
-                                        if (selectedTab == 0) {
-                                            onMoveToLater(parentTask)
-                                            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
-                                        }
-                                    }
-                                    SwipeToDismissBoxValue.EndToStart -> {
-                                        if (selectedTab == 1) {
-                                            onMoveToToday(parentTask)
-                                            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
-                                        }
-                                    }
-                                    else -> {}
+                tasks.forEach { parentTask ->
+                    key(parentTask.id, selectedTab) {
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { dismissValue ->
+                                when (dismissValue) {
+                                    SwipeToDismissBoxValue.StartToEnd -> selectedTab == 0
+                                    SwipeToDismissBoxValue.EndToStart -> selectedTab == 1
+                                    else -> false
                                 }
                             }
+                        )
 
-                            SwipeToDismissBox(
-                                state = dismissState,
-                                enableDismissFromStartToEnd = (selectedTab == 0),
-                                enableDismissFromEndToStart = (selectedTab == 1),
-                                backgroundContent = {
-                                    val color = when (dismissState.dismissDirection) {
-                                        SwipeToDismissBoxValue.StartToEnd -> Color(0xFFE6EFE9)
-                                        SwipeToDismissBoxValue.EndToStart -> Color(0xFFEBF3FC)
-                                        else -> Color.Transparent
+                        LaunchedEffect(dismissState.currentValue) {
+                            when (dismissState.currentValue) {
+                                SwipeToDismissBoxValue.StartToEnd -> {
+                                    if (selectedTab == 0) {
+                                        onMoveToLater(parentTask)
                                     }
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(color, shape = RoundedCornerShape(16.dp))
-                                            .padding(horizontal = 16.dp),
-                                        contentAlignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
-                                            Alignment.CenterStart
-                                        } else {
-                                            Alignment.CenterEnd
+                                }
+                                SwipeToDismissBoxValue.EndToStart -> {
+                                    if (selectedTab == 1) {
+                                        onMoveToToday(parentTask)
+                                    }
+                                }
+                                else -> {}
+                            }
+                        }
+
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            enableDismissFromStartToEnd = (selectedTab == 0),
+                            enableDismissFromEndToStart = (selectedTab == 1),
+                            backgroundContent = {
+                                val direction = dismissState.targetValue
+                                val color = when (direction) {
+                                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFFE6EFE9)
+                                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFEBF3FC)
+                                    else -> Color.Transparent
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(color, shape = RoundedCornerShape(16.dp))
+                                        .padding(horizontal = 16.dp),
+                                    contentAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) {
+                                        Alignment.CenterStart
+                                    } else {
+                                        Alignment.CenterEnd
+                                    },
+                                ) {
+                                    Text(
+                                        text = when (direction) {
+                                            SwipeToDismissBoxValue.StartToEnd -> "Move to Later ➔"
+                                            SwipeToDismissBoxValue.EndToStart -> "⇠ Move to Today"
+                                            else -> ""
                                         },
-                                    ) {
-                                        Text(
-                                            text = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
-                                                "Move to Later ➔"
-                                            } else {
-                                                "⇠ Move to Today"
-                                            },
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 13.sp,
-                                        )
-                                    }
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                    )
                                 }
-                            ) {
-                                ParentTaskCard(
-                                    task = parentTask,
-                                    subtasks = subtasksLookup(parentTask.id),
-                                    allCategories = allCategories,
-                                    secondaryCategories = secondaryCategoriesLookup(parentTask.id),
-                                    onToggle = onToggle,
-                                    onCardClick = { onCardClick(parentTask) },
-                                    onSubtaskClick = onSubtaskClick,
-                                )
                             }
+                        ) {
+                            ParentTaskCard(
+                                task = parentTask,
+                                subtasks = subtasksLookup(parentTask.id),
+                                allCategories = allCategories,
+                                secondaryCategories = secondaryCategoriesLookup(parentTask.id),
+                                onToggle = onToggle,
+                                onCardClick = { onCardClick(parentTask) },
+                                onSubtaskClick = onSubtaskClick,
+                            )
                         }
                     }
                 }
