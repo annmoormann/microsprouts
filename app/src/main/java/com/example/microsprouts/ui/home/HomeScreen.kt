@@ -60,10 +60,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.microsprouts.R
+import com.example.microsprouts.data.entity.Category
 import com.example.microsprouts.data.entity.MonthlyRuleType
 import com.example.microsprouts.data.entity.RecurrenceUnit
 import com.example.microsprouts.data.entity.Task
 import com.example.microsprouts.data.entity.YearlyRuleType
+import com.example.microsprouts.ui.components.CategoryChip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -261,6 +263,8 @@ fun HomeScreen(
                             ParentTaskCard(
                                 task = parentTask,
                                 subtasks = taskSubtasks,
+                                allCategories = allCategories,
+                                secondaryCategories = taskSecondaryCategories[parentTask.id] ?: emptyList(),
                                 onToggle = { viewModel.toggleTaskCompletion(it) },
                                 onCardClick = { editingTask = parentTask },
                                 onSubtaskClick = { editingTask = it },
@@ -309,197 +313,4 @@ fun HomeScreen(
         val currentTask = editingTask!!
         EditTaskSheet(
             task = currentTask,
-            onDismiss = { editingTask = null },
-            onConfirm = { title, primaryCategoryId, secondaryCategoryIds, parentId,
-                          isRecurring, recurrenceUnit, intervalValue, monthlyRuleType,
-                          monthlyDayOfMonth, yearlyRuleType, yearlyMonth, yearlyDayOfMonth,
-                          recurrenceBehavior ->
-                viewModel.updateTask(
-                    currentTask.copy(
-                        title = title,
-                        primaryCategoryId = primaryCategoryId,
-                        parentId = parentId,
-                        isRecurring = isRecurring,
-                        recurrenceUnit = recurrenceUnit,
-                        intervalValue = intervalValue,
-                        monthlyRuleType = monthlyRuleType,
-                        monthlyDayOfMonth = monthlyDayOfMonth,
-                        yearlyRuleType = yearlyRuleType,
-                        yearlyMonth = yearlyMonth,
-                        yearlyDayOfMonth = yearlyDayOfMonth,
-                        recurrenceBehavior = recurrenceBehavior
-                    ),
-                    secondaryCategoryIds
-                )
-                editingTask = null
-            },
-            onDelete = {
-                viewModel.deleteTask(currentTask.id)
-                editingTask = null
-            },
-            availableParentTasks = todayTasks + laterTasks,
-            allCategories = allCategories,
-            currentSecondaryCategoryIds = taskSecondaryCategories[currentTask.id]?.map { it.id } ?: emptyList(),
-            parentSecondaryCategoriesLookup = { parentId ->
-                taskSecondaryCategories[parentId] ?: emptyList()
-            },
-            onCreateCategory = { name, colorHex ->
-                viewModel.insertCategory(name, colorHex)
-            }
-        )
-    }
-}
-
-@Composable
-fun ParentTaskCard(
-    task: Task,
-    subtasks: List<Task>,
-    onToggle: (Task) -> Unit,
-    onCardClick: () -> Unit,
-    onSubtaskClick: (Task) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onCardClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        ) {
-            val isCompleted = task.isCompleted
-            val textAlpha = if (isCompleted) 0.5f else 1f
-            val textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = task.isCompleted,
-                    onCheckedChange = { onToggle(task) },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary,
-                    ),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .alpha(textAlpha),
-                ) {
-                    Text(
-                        text = task.title,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textDecoration = textDecoration,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (task.description.isNotEmpty()) {
-                        Text(
-                            text = task.description,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    if (task.isRecurring) {
-                        Text(
-                            text = "${getRecurrenceDisplayText(task)} (${task.recurrenceBehavior.name})",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.padding(top = 2.dp),
-                        )
-                    }
-                }
-            }
-
-            if (subtasks.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    subtasks.forEach { subtask ->
-                        val subCompleted = subtask.isCompleted
-                        val subTextAlpha = if (subCompleted) 0.5f else 1f
-                        val subTextDecoration = if (subCompleted) TextDecoration.LineThrough else TextDecoration.None
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSubtaskClick(subtask) }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(
-                                checked = subtask.isCompleted,
-                                onCheckedChange = { onToggle(subtask) },
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = MaterialTheme.colorScheme.primary,
-                                ),
-                                modifier = Modifier.size(24.dp),
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = subtask.title,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textDecoration = subTextDecoration,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .alpha(subTextAlpha),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun getRecurrenceDisplayText(task: Task): String {
-    if (!task.isRecurring) return ""
-
-    val interval = task.intervalValue.coerceAtLeast(1)
-
-    return when (task.recurrenceUnit) {
-        RecurrenceUnit.DAILY -> {
-            if (interval == 1) "Repeats daily" else "Repeats every $interval days"
-        }
-        RecurrenceUnit.WEEKLY -> {
-            if (interval == 1) "Repeats weekly" else "Repeats every $interval weeks"
-        }
-        RecurrenceUnit.MONTHLY -> {
-            if (task.monthlyRuleType == MonthlyRuleType.INTERVAL) {
-                if (interval == 1) "Repeats monthly" else "Repeats every $interval months"
-            } else {
-                "Repeats monthly on day ${task.monthlyDayOfMonth}"
-            }
-        }
-        RecurrenceUnit.YEARLY -> {
-            if (task.yearlyRuleType == YearlyRuleType.INTERVAL) {
-                if (interval == 1) "Repeats yearly" else "Repeats every $interval years"
-            } else {
-                "Repeats yearly on ${task.yearlyMonth}/${task.yearlyDayOfMonth}"
-            }
-        }
-    }
-}
+            onDismiss = { editingTask =
