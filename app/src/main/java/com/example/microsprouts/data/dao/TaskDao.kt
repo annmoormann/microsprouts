@@ -48,6 +48,27 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks")
     fun getAllTasksRaw(): List<Task>
+    
+    @Query("SELECT * FROM categories")
+    fun getAllCategoriesRaw(): List<Category>
+    
+    @Query("SELECT * FROM task_category_cross_ref")
+    fun getAllCrossRefsRaw(): List<TaskCategoryCrossRef>
+
+    @Query("DELETE FROM task_category_cross_ref")
+    suspend fun clearAllCrossRefs()
+
+    @Query("DELETE FROM categories")
+    suspend fun clearAllCategories()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTaskRaw(task: Task)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCategoryRaw(category: Category)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCrossRefRaw(crossRef: TaskCategoryCrossRef)
 
     @Delete
     suspend fun deleteTask(task: Task)
