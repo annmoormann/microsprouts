@@ -6,24 +6,39 @@ plugins {
 }
 
 android {
-    namespace = "com.example.microsprouts"
+    namespace = "com.microsprouts.tasks"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.microsprouts"
+        applicationId = "com.microsprouts.tasks"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            // WARNING: These are placeholder debug values so the build succeeds now. 
+            // Replace these with your actual release keystore values before publishing!
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

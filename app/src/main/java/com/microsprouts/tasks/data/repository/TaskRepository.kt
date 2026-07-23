@@ -1,0 +1,119 @@
+package com.microsprouts.tasks.data.repository
+
+import com.microsprouts.tasks.data.dao.TaskDao
+import com.microsprouts.tasks.data.entity.Category
+import com.microsprouts.tasks.data.entity.RecurrenceBehavior
+import com.microsprouts.tasks.data.entity.Task
+import com.microsprouts.tasks.data.entity.TaskCategoryCrossRef
+import com.microsprouts.tasks.data.entity.TaskList
+import kotlinx.coroutines.flow.Flow
+
+class TaskRepository(
+    private val taskDao: TaskDao,
+) {
+
+    val allTasks: Flow<List<Task>> = taskDao.getAllTasksFlow()
+    val allCategories: Flow<List<Category>> = taskDao.getAllCategoriesFlow()
+
+    suspend fun getAllTasksRaw(): List<Task> = taskDao.getAllTasksRaw()
+
+    suspend fun insertTask(task: Task) = taskDao.insertTask(task)
+
+    suspend fun clearAllTasks() = taskDao.clearAllTasks()
+
+    suspend fun deleteTask(task: Task) = taskDao.deleteTask(task)
+
+    suspend fun deleteTaskById(id: Long) = taskDao.deleteTaskById(id)
+
+    suspend fun getAllCategories(): List<Category> = taskDao.getAllCategories()
+
+    suspend fun insertCategory(category: Category) = taskDao.insertCategory(category)
+
+    suspend fun insertSecondaryCategory(crossRef: TaskCategoryCrossRef) =
+        taskDao.insertSecondaryCategory(crossRef)
+
+    suspend fun deleteSecondaryCategoriesForTask(taskId: Long) =
+        taskDao.deleteSecondaryCategoriesForTask(taskId)
+
+    suspend fun getSecondaryCategoriesForTask(taskId: Long): List<Category> =
+        taskDao.getSecondaryCategoriesForTask(taskId)
+
+    suspend fun seedSampleData() {
+        clearAllTasks()
+        insertCategory(Category(id = 1L, name = "Watering", colorHex = "#4A90E2"))
+        insertCategory(Category(id = 2L, name = "Harvesting", colorHex = "#E2844A"))
+        insertCategory(Category(id = 3L, name = "Packaging", colorHex = "#50E3C2"))
+        insertCategory(Category(id = 4L, name = "Cleaning", colorHex = "#B8E986"))
+
+        insertTask(
+            Task(
+                id = 10L,
+                title = "🌱 Run Morning Farm Inspection",
+                isCompleted = false,
+                currentList = TaskList.TODAY,
+                isRecurring = true,
+                intervalValue = 1,
+                recurrenceBehavior = RecurrenceBehavior.SKIP,
+                parentId = null,
+                primaryCategoryId = 1L
+            ),
+        )
+        insertSecondaryCategory(TaskCategoryCrossRef(taskId = 10L, categoryId = 4L))
+
+        insertTask(
+            Task(
+                id = 11L,
+                title = "Check moisture levels in tray room",
+                isCompleted = false,
+                currentList = TaskList.TODAY,
+                isRecurring = false,
+                intervalValue = 0,
+                recurrenceBehavior = RecurrenceBehavior.SKIP,
+                parentId = 10L,
+                primaryCategoryId = 1L,
+            ),
+        )
+
+        insertTask(
+            Task(
+                id = 12L,
+                title = "Log ambient humidity readings",
+                isCompleted = true,
+                currentList = TaskList.TODAY,
+                isRecurring = false,
+                intervalValue = 0,
+                recurrenceBehavior = RecurrenceBehavior.SKIP,
+                parentId = 10L,
+                primaryCategoryId = 4L,
+            ),
+        )
+
+        insertTask(
+            Task(
+                id = 20L,
+                title = "📦 Pack premium subscription boxes",
+                isCompleted = false,
+                currentList = TaskList.TODAY,
+                isRecurring = false,
+                intervalValue = 0,
+                recurrenceBehavior = RecurrenceBehavior.SKIP,
+                parentId = null,
+                primaryCategoryId = 3L,
+            ),
+        )
+
+        insertTask(
+            Task(
+                id = 30L,
+                title = "🚜 Deep clean the sanitization bay",
+                isCompleted = false,
+                currentList = TaskList.LATER,
+                isRecurring = true,
+                intervalValue = 7,
+                recurrenceBehavior = RecurrenceBehavior.SKIP,
+                parentId = null,
+                primaryCategoryId = 4L
+            ),
+        )
+    }
+}
